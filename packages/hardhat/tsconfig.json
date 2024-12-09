@@ -1,11 +1,46 @@
 {
   "compilerOptions": {
-    "target": "es2020",
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "alwaysStrict": true,
     "module": "commonjs",
     "esModuleInterop": true,
     "resolveJsonModule": true,
+    "noUnusedLocals": true,
+    "allowImportingTsExtensions": true,
+    "removeComments": true,
+    "preserveConstEnums": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noUnusedParameters": true,
+    "allowUnreachableCode": false,
+    "noFallthroughCasesInSwitch": true,
+    "target": "es2020",
+    "outDir": "out",
+    "sourceMap": true,
+    "allowSyntheticDefaultImports": true,
+    "checkJs": true,
     "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "skipLibCheck": true
-  }
+    "jsx": "preserve",
+    "noEmit": true,
+    "isolatedModules": true,
+    "incremental": true,
+    // Path aliases
+    "baseUrl": "./",
+    "paths": {
+      "@*": ["./*"],
+      "@artifacts/*": ["artifacts/*"],
+      "@contracts/*": ["contracts/*"],
+      "@ignition/*": ["ignition/*"],
+      "@lib/*": ["lib/*"],
+      "@scripts/*": ["scripts/*"],
+      "@test/*": ["test/*"],
+    },
+    "strictNullChecks": true
+  },
+  "include": ["**/*.d.ts", "**/*.ts"],
+  "exclude": ["./out/**/*", "**/node_modules/**/*"]
 }
