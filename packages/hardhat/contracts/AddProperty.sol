@@ -71,7 +71,7 @@ contract AddProperty {
      * @param _amount The amount of the property
      */
     function addPropertyToListing(address _propertyAddress, uint256 _tokenId, uint256 _amount) external {
-        // Input validation
+        // input validation
         if(msg.sender != s_owner) revert AddProperty__NotOwner();
         if(propertyStatus[_tokenId] == PropertyStatus.Listed) revert AddProperty__PropertyAlreadyExists();
         if(_propertyAddress == address(0)) revert AddProperty__InvalidAddress();
@@ -89,13 +89,13 @@ contract AddProperty {
         
         // update status and ownership
         propertyStatus[_tokenId] = PropertyStatus.Listed;
-        propertyAddress[s_propertyId] = msg.sender;
-        propertyOwnersList.push(msg.sender);
+        propertyAddress[s_propertyId] = s_owner;
+        propertyOwnersList.push(s_owner);
 
         // Mint NFT
-        property.mint(msg.sender, s_propertyId, 1, "");  // mints 1 nft to fractionalize
+        property.mint(s_owner, s_propertyId, 1, "");
 
-        emit PropertyAdded(s_propertyId, msg.sender, _propertyAddress, _tokenId, _amount);
+        emit PropertyAdded(s_propertyId, s_owner, _propertyAddress, _tokenId, _amount);
     }
 
     /*//////////////////////////////////////////////////////////////
