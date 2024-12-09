@@ -1,8 +1,8 @@
-import {expect} from "chai";
-import {ZeroAddress} from "ethers";
-import {ethers, upgrades} from "hardhat";
-import {Property} from "@typechain-types";
-import {SignerWithAddress} from "@nomicfoundation/hardhat-ethers/signers";
+import { expect } from "chai";
+import { ZeroAddress } from "ethers";
+import { ethers, upgrades } from "hardhat";
+import { Property } from "@typechain-types";
+import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 
 describe("Property", function () {
   let property: Property;
