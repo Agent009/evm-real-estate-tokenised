@@ -21,13 +21,11 @@ describe("Property", function () {
 
   describe("Deployment", function () {
     it("Should set the right owner", async function () {
-      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-      expect(await property.hasRole(await property.DEFAULT_ADMIN_ROLE(), owner.address)).to.be.true;
+      expect(await property.hasRole(await property.DEFAULT_ADMIN_ROLE(), owner.address)).to.equal(true);
     });
 
     it("Should set the right minter", async function () {
-      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-      expect(await property.hasRole(await property.MINTER_ROLE(), minter.address)).to.be.true;
+      expect(await property.hasRole(await property.MINTER_ROLE(), minter.address)).to.equal(true);
     });
   });
 
@@ -42,7 +40,7 @@ describe("Property", function () {
 
     it("Should not allow non-minters to mint tokens", async function () {
       await expect(property.connect(user).mint(user.address, 1, 100, "0x")).to.be.revertedWith(
-        "AccessControl: account " + user.address.toLowerCase() + " is missing role " + (await property.MINTER_ROLE())
+        "AccessControl: account " + user.address.toLowerCase() + " is missing role " + (await property.MINTER_ROLE()),
       );
     });
 
@@ -90,7 +88,10 @@ describe("Property", function () {
 
     it("Should not allow non-URI_SETTER_ROLE to set URI", async function () {
       await expect(property.connect(user).setURI("https://example.com/token/")).to.be.revertedWith(
-        "AccessControl: account " + user.address.toLowerCase() + " is missing role " + (await property.URI_SETTER_ROLE())
+        "AccessControl: account " +
+          user.address.toLowerCase() +
+          " is missing role " +
+          (await property.URI_SETTER_ROLE()),
       );
     });
   });
@@ -98,15 +99,13 @@ describe("Property", function () {
   describe("Access Control", function () {
     it("Should allow admin to grant roles", async function () {
       await property.grantRole(await property.MINTER_ROLE(), user.address);
-      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-      expect(await property.hasRole(await property.MINTER_ROLE(), user.address)).to.be.true;
+      expect(await property.hasRole(await property.MINTER_ROLE(), user.address)).to.equal(true);
     });
 
     it("Should allow admin to revoke roles", async function () {
       await property.grantRole(await property.MINTER_ROLE(), user.address);
       await property.revokeRole(await property.MINTER_ROLE(), user.address);
-      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-      expect(await property.hasRole(await property.MINTER_ROLE(), user.address)).to.be.false;
+      expect(await property.hasRole(await property.MINTER_ROLE(), user.address)).to.equal(false);
     });
   });
 
