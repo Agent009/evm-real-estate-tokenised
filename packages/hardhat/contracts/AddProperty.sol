@@ -18,6 +18,7 @@ contract AddProperty {
     error AddProperty__PropertyAlreadyExists();
     error AddProperty__InvalidAddress();
     error AddProperty__UserAlreadyExists();
+    error AddProperty__NotUser();
 
     /*//////////////////////////////////////////////////////////////
                                  STATE VARIABLES
@@ -26,7 +27,6 @@ contract AddProperty {
     uint256 public s_propertyId;
     Property public property;
 
-
     /*//////////////////////////////////////////////////////////////
                                FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -34,6 +34,7 @@ contract AddProperty {
         address propertyAddress;
         uint256 tokenId;
         uint256 amount;
+        string popertyURI;
     }
 
     AddingProperty[] public properties;
@@ -55,7 +56,15 @@ contract AddProperty {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
-    event PropertyAdded(uint256 indexed propertyId, address indexed owner, address indexed propertyAddress, uint256 tokenId, uint256 amount);
+    event PropertyAdded(
+        uint256 indexed propertyId, 
+        address indexed owner, 
+        address indexed propertyAddress, 
+        uint256 tokenId, 
+        uint256 amount,
+        string propertyURI
+    );
+
     /**
      * @dev Emitted when `user` is added to `propertyId`.
      */
@@ -65,6 +74,14 @@ contract AddProperty {
         s_owner = _owner;
         s_propertyId = _propertyId;
         property = Property(_property);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                MODIFIERS
+    //////////////////////////////////////////////////////////////*/
+    modifier onlyUser() {
+        if(!isUser[msg.sender]) revert AddProperty__NotUser();
+        _;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -90,7 +107,13 @@ contract AddProperty {
      * @param _amount The amount of the property
      * @param _nftAmount The amount of NFTs to mint to the property owner
      */
-    function addPropertyToListing(address _propertyAddress, uint256 _tokenId, uint256 _amount, uint256 _nftAmount) external {
+    function addPropertyToListing(
+        address _propertyAddress, 
+        uint256 _tokenId, 
+        uint256 _amount, 
+        uint256 _nftAmount, 
+        string memory _propertyURI
+    ) external onlyUser {
         // input validation
         if(msg.sender != s_owner) revert AddProperty__NotOwner();
         if(propertyStatus[_tokenId] == PropertyStatus.Listed) revert AddProperty__PropertyAlreadyExists();
@@ -103,7 +126,8 @@ contract AddProperty {
         AddingProperty memory newProperty = AddingProperty(
             _propertyAddress,
             _tokenId,
-            _amount
+            _amount,
+            _propertyURI
         );
         properties.push(newProperty);
 
@@ -115,7 +139,14 @@ contract AddProperty {
         // Mint NFT
         property.mint(s_owner, s_propertyId, _nftAmount, "");
 
-        emit PropertyAdded(s_propertyId, s_owner, _propertyAddress, _tokenId, _amount);
+        emit PropertyAdded(
+            s_propertyId, 
+            s_owner, 
+            _propertyAddress, 
+            _tokenId, 
+            _amount,
+            _propertyURI
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -129,4 +160,7 @@ contract AddProperty {
         return properties;
     }
 
+    function getUsers() external view returns (address[] memory) {
+        return users;
+    }
 }
