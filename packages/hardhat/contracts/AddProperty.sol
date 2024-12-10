@@ -2,6 +2,7 @@
 
 pragma solidity ^0.8.22;
 
+import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import {Property} from "./Property.sol";
 
 /**
@@ -10,7 +11,7 @@ import {Property} from "./Property.sol";
  * @notice Contract for listing and managing real estate properties as tokens
  * @dev Handles property listing, investment tracking, and tokenization status
  */
-contract AddProperty {
+contract AddProperty is IERC1155Receiver {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -139,8 +140,11 @@ contract AddProperty {
         propertyAddress[s_propertyId] = msg.sender;
         propertyOwnersList.push(msg.sender);
 
-        // Mint NFT
-        property.mint(msg.sender, s_propertyId, _nftAmount, "");
+        // Mint NFT to this contract first
+        property.mint(address(this), s_propertyId, _nftAmount, "");
+
+        // Then transfer the minted tokens to the user
+        property.safeTransferFrom(address(this), msg.sender, s_propertyId, _nftAmount, "");
 
         emit PropertyAdded(
             s_propertyId,
@@ -165,5 +169,33 @@ contract AddProperty {
 
     function getUsers() external view returns (address[] memory) {
         return users;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                     IERC1155Receiver IMPLEMENTATION
+    //////////////////////////////////////////////////////////////*/
+    function onERC1155Received(
+        address,
+        address,
+        uint256,
+        uint256,
+        bytes memory
+    ) public virtual override returns (bytes4) {
+        return this.onERC1155Received.selector;
+    }
+
+    function onERC1155BatchReceived(
+        address,
+        address,
+        uint256[] memory,
+        uint256[] memory,
+        bytes memory
+    ) public virtual override returns (bytes4) {
+        return this.onERC1155BatchReceived.selector;
+    }
+
+    // ERC165 support
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return interfaceId == type(IERC1155Receiver).interfaceId;
     }
 }

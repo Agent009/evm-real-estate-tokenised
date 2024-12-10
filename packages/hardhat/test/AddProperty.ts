@@ -8,10 +8,15 @@ describe("AddProperty", function () {
   const PROPERTY_ID = 0;
   let addProperty: AddProperty;
   let property: Property;
+  let addPropertyAddress: SignerWithAddress;
   let owner: SignerWithAddress;
   let minter: SignerWithAddress;
   let user: SignerWithAddress;
   let minterRole: string;
+
+  const grantRole = async (role: string, address: SignerWithAddress) => {
+    await property.grantRole(role, address);
+  };
 
   const addUser = async (connector: SignerWithAddress, user: SignerWithAddress) => {
     await expect(addProperty.connect(connector).addUser(user.address))
@@ -36,6 +41,7 @@ describe("AddProperty", function () {
     // ])) as unknown as AddProperty;
     addProperty = (await AddProperty.deploy(owner.address, PROPERTY_ID, await property.getAddress())) as AddProperty;
     await addProperty.waitForDeployment();
+    addPropertyAddress = (await addProperty.getAddress()) as unknown as SignerWithAddress;
   });
 
   describe("Deployment", function () {
@@ -49,6 +55,13 @@ describe("AddProperty", function () {
 
     it("Should set the correct Property contract address", async function () {
       expect(await addProperty.property()).to.equal(await property.getAddress());
+    });
+  });
+
+  describe("Role Management", function () {
+    it("AddProperty contract should be able to mint tokens", async function () {
+      await grantRole(minterRole, addPropertyAddress);
+      expect(await property.hasRole(minterRole, addPropertyAddress)).to.equal(true);
     });
   });
 
@@ -75,6 +88,10 @@ describe("AddProperty", function () {
   });
 
   describe("Property Listing", function () {
+    beforeEach(async function () {
+      await grantRole(minterRole, addPropertyAddress);
+    });
+
     it("Should allow user to add a property to listing", async function () {
       const propertyAddress = "0x1234567890123456789012345678901234567890";
       const tokenId = 1;
@@ -98,7 +115,7 @@ describe("AddProperty", function () {
     it("Should not allow non-user to add a property", async function () {
       await expect(
         addProperty.connect(user).addPropertyToListing(ZeroAddress, 1, 1000, 100, "uri"),
-      ).to.be.revertedWithCustomError(addProperty, "AddProperty__NotOwner");
+      ).to.be.revertedWithCustomError(addProperty, "AddProperty__NotUser");
     });
 
     it("Should not allow adding a property with zero address", async function () {
