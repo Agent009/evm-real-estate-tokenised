@@ -158,6 +158,8 @@ describe("AddProperty", function () {
 
   describe("View Functions", function () {
     beforeEach(async function () {
+      await grantRole(minterRole, addPropertyAddress);
+      await addUser(owner, owner);
       await addProperty
         .connect(owner)
         .addPropertyToListing("0x1234567890123456789012345678901234567890", 1, 1000, 100, "uri");
