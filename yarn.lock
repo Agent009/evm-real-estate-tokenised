@@ -11986,6 +11986,7 @@ __metadata:
     "@openzeppelin/contracts-upgradeable": ^5.1.0
     husky: ~8.0.3
     lint-staged: ~13.2.2
+    viem: ^2.21.54
   languageName: unknown
   linkType: soft
 
@@ -13910,7 +13911,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"viem@npm:^2.1.1":
+"viem@npm:^2.1.1, viem@npm:^2.21.54":
   version: 2.21.54
   resolution: "viem@npm:2.21.54"
   dependencies:
