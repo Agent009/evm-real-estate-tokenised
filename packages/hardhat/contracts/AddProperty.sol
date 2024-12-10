@@ -6,7 +6,7 @@ import {Property} from "./Property.sol";
 
 /**
  * @title AddProperty
- * @author Adam B Group 4 
+ * @author Adam B Group 4
  * @notice Contract for listing and managing real estate properties as tokens
  * @dev Handles property listing, investment tracking, and tokenization status
  */
@@ -39,23 +39,27 @@ contract AddProperty {
     AddingProperty[] public properties;
     address[] public propertyOwnersList;
     address[] public users;
-    
-    mapping(uint256 => address) public propertyAddress; // propertyId to owner address 
+
+    mapping(uint256 => address) public propertyAddress; // propertyId to owner address
     mapping(address => uint256) public investorShares;    // investor => amount invested
     mapping(uint256 => mapping(address => uint256)) public propertyInvestments;    // propertyId => (investor => amount)
     mapping(uint256 => PropertyStatus) public propertyStatus;
     mapping(address => bool) public isUser;
 
-    enum PropertyStatus { 
-        Listed, 
-        FullyFunded, 
-        Tokenized 
+    enum PropertyStatus {
+        Listed,
+        FullyFunded,
+        Tokenized
     }
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
     event PropertyAdded(uint256 indexed propertyId, address indexed owner, address indexed propertyAddress, uint256 tokenId, uint256 amount);
+    /**
+     * @dev Emitted when `user` is added to `propertyId`.
+     */
+    event UserAdded(uint256 indexed propertyId, address indexed user);
 
     constructor(address _owner, uint256 _propertyId, address _property) {
         s_owner = _owner;
@@ -75,6 +79,7 @@ contract AddProperty {
         if(isUser[_user]) revert AddProperty__UserAlreadyExists();
         users.push(_user);
         isUser[_user] = true;
+        emit UserAdded(s_propertyId, _user);
     }
 
     /**
@@ -101,7 +106,7 @@ contract AddProperty {
             _amount
         );
         properties.push(newProperty);
-        
+
         // update status and ownership
         propertyStatus[_tokenId] = PropertyStatus.Listed;
         propertyAddress[s_propertyId] = s_owner;
@@ -124,4 +129,4 @@ contract AddProperty {
         return properties;
     }
 
-}   
+}
