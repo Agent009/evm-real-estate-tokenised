@@ -9,6 +9,8 @@ describe("Property", function () {
   let owner: SignerWithAddress;
   let minter: SignerWithAddress;
   let user: SignerWithAddress;
+  let adminRole: string;
+  let minterRole: string;
 
   beforeEach(async function () {
     // @ts-expect-error ignore
@@ -17,15 +19,17 @@ describe("Property", function () {
     const Property = await ethers.getContractFactory("Property");
     property = (await upgrades.deployProxy(Property, [owner.address, minter.address])) as unknown as Property;
     await property.waitForDeployment();
+    adminRole = await property.DEFAULT_ADMIN_ROLE();
+    minterRole = await property.MINTER_ROLE();
   });
 
   describe("Deployment", function () {
     it("Should set the right owner", async function () {
-      expect(await property.hasRole(await property.DEFAULT_ADMIN_ROLE(), owner.address)).to.equal(true);
+      expect(await property.hasRole(adminRole, owner.address)).to.equal(true);
     });
 
     it("Should set the right minter", async function () {
-      expect(await property.hasRole(await property.MINTER_ROLE(), minter.address)).to.equal(true);
+      expect(await property.hasRole(minterRole, minter.address)).to.equal(true);
     });
   });
 
@@ -49,12 +53,12 @@ describe("Property", function () {
       // expect(true).to.equal(false); // This line ensures the test fails, and we see the error
 
       // await expect(property.connect(user).mint(user.address, 1, 100, "0x")).to.be.revertedWith(
-      //   "AccessControl: account " + user.address.toLowerCase() + " is missing role " + (await property.MINTER_ROLE()),
+      //   "AccessControl: account " + user.address.toLowerCase() + " is missing role " + (minterRole),
       // );
 
       await expect(property.connect(user).mint(user.address, 1, 100, "0x"))
         .to.be.revertedWithCustomError(property, "AccessControlUnauthorizedAccount")
-        .withArgs(user.address, await property.MINTER_ROLE());
+        .withArgs(user.address, minterRole);
     });
 
     it("Should allow minter to batch mint tokens", async function () {
@@ -124,14 +128,14 @@ describe("Property", function () {
 
   describe("Access Control", function () {
     it("Should allow admin to grant roles", async function () {
-      await property.grantRole(await property.MINTER_ROLE(), user.address);
-      expect(await property.hasRole(await property.MINTER_ROLE(), user.address)).to.equal(true);
+      await property.grantRole(minterRole, user.address);
+      expect(await property.hasRole(minterRole, user.address)).to.equal(true);
     });
 
     it("Should allow admin to revoke roles", async function () {
-      await property.grantRole(await property.MINTER_ROLE(), user.address);
-      await property.revokeRole(await property.MINTER_ROLE(), user.address);
-      expect(await property.hasRole(await property.MINTER_ROLE(), user.address)).to.equal(false);
+      await property.grantRole(minterRole, user.address);
+      await property.revokeRole(minterRole, user.address);
+      expect(await property.hasRole(minterRole, user.address)).to.equal(false);
     });
   });
 
