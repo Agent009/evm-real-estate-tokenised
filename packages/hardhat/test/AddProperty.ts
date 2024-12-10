@@ -11,6 +11,13 @@ describe("AddProperty", function () {
   let owner: SignerWithAddress;
   let minter: SignerWithAddress;
   let user: SignerWithAddress;
+  let minterRole: string;
+
+  const addUser = async (connector: SignerWithAddress, user: SignerWithAddress) => {
+    await expect(addProperty.connect(connector).addUser(user.address))
+      .to.emit(addProperty, "UserAdded")
+      .withArgs(PROPERTY_ID, user.address);
+  };
 
   beforeEach(async function () {
     // @ts-expect-error ignore
@@ -19,6 +26,7 @@ describe("AddProperty", function () {
     const Property = await ethers.getContractFactory("Property");
     property = (await upgrades.deployProxy(Property, [owner.address, minter.address])) as unknown as Property;
     await property.waitForDeployment();
+    minterRole = await property.MINTER_ROLE();
 
     const AddProperty = await ethers.getContractFactory("AddProperty");
     // addProperty = (await upgrades.deployProxy(AddProperty, [
@@ -35,7 +43,7 @@ describe("AddProperty", function () {
       expect(await addProperty.s_owner()).to.equal(owner.address);
     });
 
-    it("Should set the initial property ID to PROPERTY_ID", async function () {
+    it(`Should set the initial property ID to ${PROPERTY_ID}`, async function () {
       expect(await addProperty.s_propertyId()).to.equal(PROPERTY_ID);
     });
 
@@ -46,9 +54,7 @@ describe("AddProperty", function () {
 
   describe("User Management", function () {
     it("Should allow owner to add a user", async function () {
-      await expect(addProperty.connect(owner).addUser(user.address))
-        .to.emit(addProperty, "UserAdded")
-        .withArgs(PROPERTY_ID, user.address);
+      await addUser(owner, user);
       expect(await addProperty.isUser(user.address)).to.equal(true);
     });
 
@@ -69,15 +75,19 @@ describe("AddProperty", function () {
   });
 
   describe("Property Listing", function () {
-    it("Should allow owner to add a property to listing", async function () {
+    it("Should allow user to add a property to listing", async function () {
       const propertyAddress = "0x1234567890123456789012345678901234567890";
       const tokenId = 1;
       const amount = 1000;
       const nftAmount = 100;
+      const propertyURI = "uri";
 
-      await expect(addProperty.connect(owner).addPropertyToListing(propertyAddress, tokenId, amount, nftAmount))
+      await addUser(owner, user);
+      await expect(
+        addProperty.connect(user).addPropertyToListing(propertyAddress, tokenId, amount, nftAmount, propertyURI),
+      )
         .to.emit(addProperty, "PropertyAdded")
-        .withArgs(1, owner.address, propertyAddress, tokenId, amount);
+        .withArgs(1, user.address, propertyAddress, tokenId, amount, propertyURI);
 
       const listedProperty = await addProperty.properties(0);
       expect(listedProperty.propertyAddress).to.equal(propertyAddress);
@@ -85,29 +95,34 @@ describe("AddProperty", function () {
       expect(listedProperty.amount).to.equal(amount);
     });
 
-    it("Should not allow non-owner to add a property", async function () {
+    it("Should not allow non-user to add a property", async function () {
       await expect(
-        addProperty.connect(user).addPropertyToListing(ZeroAddress, 1, 1000, 100),
+        addProperty.connect(user).addPropertyToListing(ZeroAddress, 1, 1000, 100, "uri"),
       ).to.be.revertedWithCustomError(addProperty, "AddProperty__NotOwner");
     });
 
     it("Should not allow adding a property with zero address", async function () {
+      await addUser(owner, owner);
       await expect(
-        addProperty.connect(owner).addPropertyToListing(ZeroAddress, 1, 1000, 100),
+        addProperty.connect(owner).addPropertyToListing(ZeroAddress, 1, 1000, 100, "uri"),
       ).to.be.revertedWithCustomError(addProperty, "AddProperty__InvalidAddress");
     });
 
     it("Should not allow adding a property that already exists", async function () {
       const propertyAddress = "0x1234567890123456789012345678901234567890";
-      await addProperty.connect(owner).addPropertyToListing(propertyAddress, 1, 1000, 100);
+      await addUser(owner, owner);
+      await addProperty.connect(owner).addPropertyToListing(propertyAddress, 1, 1000, 100, "uri");
       await expect(
-        addProperty.connect(owner).addPropertyToListing(propertyAddress, 1, 1000, 100),
+        addProperty.connect(owner).addPropertyToListing(propertyAddress, 1, 1000, 100, "uri"),
       ).to.be.revertedWithCustomError(addProperty, "AddProperty__PropertyAlreadyExists");
     });
 
     it("Should increment property ID after adding a property", async function () {
       const initialId = await addProperty.s_propertyId();
-      await addProperty.connect(owner).addPropertyToListing("0x1234567890123456789012345678901234567890", 1, 1000, 100);
+      await addUser(owner, owner);
+      await addProperty
+        .connect(owner)
+        .addPropertyToListing("0x1234567890123456789012345678901234567890", 1, 1000, 100, "uri");
       expect(await addProperty.s_propertyId()).to.equal(initialId + 1n);
     });
 
@@ -116,16 +131,22 @@ describe("AddProperty", function () {
       const tokenId = 1;
       const amount = 1000;
       const nftAmount = 100;
+      const propertyURI = "uri";
 
-      await addProperty.connect(owner).addPropertyToListing(propertyAddress, tokenId, amount, nftAmount);
+      await addUser(owner, owner);
+      await addProperty.connect(owner).addPropertyToListing(propertyAddress, tokenId, amount, nftAmount, propertyURI);
       expect(await property.balanceOf(owner.address, 1)).to.equal(nftAmount);
     });
   });
 
   describe("View Functions", function () {
     beforeEach(async function () {
-      await addProperty.connect(owner).addPropertyToListing("0x1234567890123456789012345678901234567890", 1, 1000, 100);
-      await addProperty.connect(owner).addPropertyToListing("0x2345678901234567890123456789012345678901", 2, 2000, 200);
+      await addProperty
+        .connect(owner)
+        .addPropertyToListing("0x1234567890123456789012345678901234567890", 1, 1000, 100, "uri");
+      await addProperty
+        .connect(owner)
+        .addPropertyToListing("0x2345678901234567890123456789012345678901", 2, 2000, 200, "uri");
     });
 
     it("Should return correct property owners", async function () {

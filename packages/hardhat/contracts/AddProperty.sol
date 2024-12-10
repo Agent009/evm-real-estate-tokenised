@@ -47,7 +47,12 @@ contract AddProperty {
     mapping(uint256 => PropertyStatus) public propertyStatus;
     mapping(address => bool) public isUser;
 
+    /// @dev In Solidity, when you access a mapping with a key that hasn't been set,
+    /// it returns the default value for the value type. For an enum, the default value
+    /// is the first defined enum value (index 0).
+    /// So, we're adding an initial state value to overcome this issue.
     enum PropertyStatus {
+        NotListed,  // Default state
         Listed,
         FullyFunded,
         Tokenized
@@ -57,17 +62,15 @@ contract AddProperty {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
     event PropertyAdded(
-        uint256 indexed propertyId, 
-        address indexed owner, 
-        address indexed propertyAddress, 
-        uint256 tokenId, 
+        uint256 indexed propertyId,
+        address indexed owner,
+        address indexed propertyAddress,
+        uint256 tokenId,
         uint256 amount,
         string propertyURI
     );
 
-    /**
-     * @dev Emitted when `user` is added to `propertyId`.
-     */
+    /// @dev Emitted when `user` is added to `propertyId`.
     event UserAdded(uint256 indexed propertyId, address indexed user);
 
     constructor(address _owner, uint256 _propertyId, address _property) {
@@ -100,23 +103,23 @@ contract AddProperty {
     }
 
     /**
-     * @notice Adds a property to the listing for users to invest in
-     * an NFT is minted to the property owner to fractionalize
-     * @param _propertyAddress The address of the property
-     * @param _tokenId The tokenId of the property
-     * @param _amount The amount of the property
-     * @param _nftAmount The amount of NFTs to mint to the property owner
-     */
+ * @notice Adds a property to the listing for users to invest in
+ * an NFT is minted to the property owner to fractionalize
+ * @param _propertyAddress The address of the property
+ * @param _tokenId The tokenId of the property
+ * @param _amount The amount of the property
+ * @param _nftAmount The amount of NFTs to mint to the property owner
+ * @param _propertyURI The URI of the property metadata
+ */
     function addPropertyToListing(
-        address _propertyAddress, 
-        uint256 _tokenId, 
-        uint256 _amount, 
-        uint256 _nftAmount, 
+        address _propertyAddress,
+        uint256 _tokenId,
+        uint256 _amount,
+        uint256 _nftAmount,
         string memory _propertyURI
     ) external onlyUser {
         // input validation
-        if(msg.sender != s_owner) revert AddProperty__NotOwner();
-        if(propertyStatus[_tokenId] == PropertyStatus.Listed) revert AddProperty__PropertyAlreadyExists();
+        if(propertyStatus[_tokenId] != PropertyStatus.NotListed) revert AddProperty__PropertyAlreadyExists();
         if(_propertyAddress == address(0)) revert AddProperty__InvalidAddress();
 
         // increment before use to avoid starting at 0
@@ -133,17 +136,17 @@ contract AddProperty {
 
         // update status and ownership
         propertyStatus[_tokenId] = PropertyStatus.Listed;
-        propertyAddress[s_propertyId] = s_owner;
-        propertyOwnersList.push(s_owner);
+        propertyAddress[s_propertyId] = msg.sender;
+        propertyOwnersList.push(msg.sender);
 
         // Mint NFT
-        property.mint(s_owner, s_propertyId, _nftAmount, "");
+        property.mint(msg.sender, s_propertyId, _nftAmount, "");
 
         emit PropertyAdded(
-            s_propertyId, 
-            s_owner, 
-            _propertyAddress, 
-            _tokenId, 
+            s_propertyId,
+            msg.sender,
+            _propertyAddress,
+            _tokenId,
             _amount,
             _propertyURI
         );
