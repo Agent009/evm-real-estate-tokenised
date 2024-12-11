@@ -40,16 +40,13 @@ contract AddProperty {
         uint256 listPrice;
     }
 
-
     AddingProperty[] public properties;
     address[] public propertyOwnersList;
     address[] public users;
     
     mapping(uint256 => address) public propertyAddress; // propertyId to owner address 
-    mapping(address => uint256) public investorShares;    // investor => amount invested
-    mapping(uint256 => mapping(address => uint256)) public propertyInvestments;    // propertyId => (investor => amount)
-    mapping(uint256 => PropertyStatus) public propertyStatus;
-    mapping(address => bool) public isUser;
+    mapping(uint256 => PropertyStatus) public propertyStatus; // propertyId to property status
+    mapping(address => bool) public isUser; // address to user status
 
     enum PropertyStatus { 
         Listed, 
@@ -61,10 +58,9 @@ contract AddProperty {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
     event PropertyAdded(
-        uint256 indexed propertyId, 
-        address indexed owner, 
-        address indexed propertyAddress, 
-        uint256 tokenId, 
+        uint256 indexed tokenId,
+        address indexed owner,
+        address indexed propertyAddress,
         uint256 amount,
         string propertyURI
     );
@@ -105,7 +101,6 @@ contract AddProperty {
      * @param _tokenId The tokenId of the property
      * @param _nftAmount The amount of NFTs to mint to the property lister
      */
-
     function addPropertyToListing(
         address _propertyAddress, 
         uint256 _tokenId, 
@@ -115,6 +110,7 @@ contract AddProperty {
     ) external onlyUser {
         if(_propertyAddress == address(0)) revert AddProperty__InvalidAddress();
         
+        // checks the tokenId to make sure it is not already existing
         if(propertyAddress[_tokenId] != address(0)) revert AddProperty__PropertyAlreadyExists();
         
         AddingProperty memory newProperty = AddingProperty(
@@ -129,6 +125,7 @@ contract AddProperty {
         propertyAddress[_tokenId] = _propertyAddress;
         propertyOwnersList.push(msg.sender);
 
+        // create a URI for the property
         property.setURI(
             generatePropertyURI(
                 _metadata.rooms,
@@ -144,12 +141,19 @@ contract AddProperty {
             _tokenId, 
             msg.sender, 
             _propertyAddress, 
-            _tokenId, 
             _propertyAmount,
             generatePropertyURI(_metadata.rooms, _metadata.squareFoot, _propertyAddress, _metadata.listPrice)
         );
     }
 
+    /**
+     * @notice Generates a URI for a property
+     * @param rooms The number of rooms in the property
+     * @param squareFoot The square footage of the property
+     * @param propertyAddr The address of the property
+     * @param listPrice The list price of the property
+     * @return The URI for the property
+     */
     function generatePropertyURI(
         uint256 rooms,
         uint256 squareFoot,
