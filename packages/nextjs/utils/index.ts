@@ -1,3 +1,5 @@
+import { TransactionReceipt, formatEther } from "viem";
+
 export { formatUrl, getApiUrl, getUrl } from "./api";
 export { constants } from "./constants";
 
@@ -7,11 +9,7 @@ export { constants } from "./constants";
  * @param tokenRatio
  * @param tokenValue
  */
-export const tokenAmountInWEI = (
-  amount: string | number | bigint,
-  tokenRatio: bigint,
-  tokenValue: bigint,
-) => {
+export const tokenAmountInWEI = (amount: string | number | bigint, tokenRatio: bigint, tokenValue: bigint) => {
   return (BigInt(amount || 1n) * tokenValue) / tokenRatio;
 };
 
@@ -21,11 +19,7 @@ export const tokenAmountInWEI = (
  * @param tokenRatio
  * @param tokenValue
  */
-export const weiToTokenAmount = (
-  amount: bigint,
-  tokenRatio: bigint,
-  tokenValue: bigint,
-) => {
+export const weiToTokenAmount = (amount: bigint, tokenRatio: bigint, tokenValue: bigint) => {
   return (BigInt(amount || 1n) * tokenRatio) / tokenValue;
 };
 
@@ -35,11 +29,7 @@ export const weiToTokenAmount = (
  * @param tokenRatio
  * @param tokenValue
  */
-export const weiToFractionalTokenAmount = (
-  amount: bigint,
-  tokenRatio: bigint,
-  tokenValue: bigint,
-) => {
+export const weiToFractionalTokenAmount = (amount: bigint, tokenRatio: bigint, tokenValue: bigint) => {
   return (Number(amount || 1) * Number(tokenRatio)) / Number(tokenValue);
 };
 
@@ -49,4 +39,19 @@ export const weiToFractionalTokenAmount = (
  */
 export const formatNumber = (amount: string | number | bigint) => {
   return String(amount).replace(/\B(?=(\d{3})+(?!\d))/g, "_");
+};
+
+export const gasPrices = (receipt: TransactionReceipt, msgPrefix?: string) => {
+  const gasPrice = receipt.effectiveGasPrice ? formatEther(receipt.effectiveGasPrice) : "N/A";
+  const gasUsed = receipt.gasUsed ? receipt.gasUsed.toString() : "N/A";
+  const totalCost = receipt.effectiveGasPrice ? formatEther(receipt.effectiveGasPrice * receipt.gasUsed) : "N/A";
+  console.log(`${msgPrefix} -> gas -> price`, gasPrice, "used", gasUsed, "totalCost", totalCost);
+  return {
+    display: {
+      gasPrice,
+      gasUsed,
+      totalCost,
+    },
+    totalCost: receipt.effectiveGasPrice ? receipt.effectiveGasPrice * receipt.gasUsed : 0n,
+  };
 };

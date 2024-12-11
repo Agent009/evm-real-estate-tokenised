@@ -2,14 +2,15 @@
 
 pragma solidity ^0.8.22;
 
-import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
-//import {Property} from "./Property.sol";
-import {Property} from "./PropertyERC.sol";
+import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
+ import {Property} from "./Property.sol";
+//import {PropertyERC} from "./PropertyERC.sol";
 
 /**
  * @title AddProperty
- * @author Adam B Group 4 
+ * @author Adam B Group 4
  * @notice Contract for listing and managing real estate properties as tokens
  * @dev Handles property listing, investment tracking, and tokenization status
  */
@@ -46,7 +47,7 @@ contract AddProperty is IERC1155Receiver {
     address[] public propertyOwnersList;
     address[] public users;
 
-    mapping(uint256 => address) public propertyAddress; // propertyId to owner address 
+    mapping(uint256 => address) public propertyAddress; // propertyId to owner address
     mapping(uint256 => PropertyStatus) public propertyStatus; // propertyId to property status
     mapping(address => bool) public isUser; // address to user status
 
@@ -92,6 +93,7 @@ contract AddProperty is IERC1155Receiver {
     /**
      * @notice Adds a user to the list of users
      * @param _user The address of the user
+     * @dev TODO: Should this allow anyone to add a user?
      */
     function addUser(address _user) external {
         if(isUser[_user]) revert AddProperty__UserAlreadyExists();
@@ -109,51 +111,45 @@ contract AddProperty is IERC1155Receiver {
      * @param _nftAmount The amount of NFTs to mint to the property lister
      */
     function addPropertyToListing(
-        address _propertyAddress, 
-        uint256 _tokenId, 
+        address _propertyAddress,
+        uint256 _tokenId,
         uint256 _propertyAmount,
         uint256 _nftAmount,
         PropertyMetadata memory _metadata
     ) external onlyUser {
         if(_propertyAddress == address(0)) revert AddProperty__InvalidAddress();
-        
+
         // checks the tokenId to make sure it is not already existing
         if(propertyAddress[_tokenId] != address(0)) revert AddProperty__PropertyAlreadyExists();
-        
+
         AddingProperty memory newProperty = AddingProperty(
             _propertyAddress,
             _tokenId,
             _propertyAmount
         );
         properties.push(newProperty);
-        
+
         // update status and ownership
         propertyStatus[_tokenId] = PropertyStatus.Listed;
         propertyAddress[_tokenId] = _propertyAddress;
         propertyOwnersList.push(msg.sender);
 
         // create a URI for the property
-        property.setURI(
-            generatePropertyURI(
-                _metadata.rooms,
-                _metadata.squareFoot,
-                _propertyAddress,
-                _metadata.listPrice
-            )
-        );
+        string memory uri = generatePropertyURI(_metadata.rooms, _metadata.squareFoot, _propertyAddress, _metadata.listPrice);
+        property.setURI(uri);
 
         // Mint NFT to this contract first
-        // property.mint(address(this), s_propertyId, _nftAmount, "");
+        //property.mint(msg.sender, _tokenId, _nftAmount, "");
+        property.mint(address(this), _tokenId, _nftAmount, "");
         // Then transfer the minted tokens to the user
-        // property.safeTransferFrom(address(this), msg.sender, s_propertyId, _nftAmount, "");
-        property.mint(msg.sender, _tokenId, _nftAmount, "");
+        property.safeTransferFrom(address(this), msg.sender, _tokenId, _nftAmount, "");
 
         emit PropertyAdded(
-            _tokenId, 
-            msg.sender, 
-            _propertyAddress, 
+            _tokenId,
+            msg.sender,
+            _propertyAddress,
             _propertyAmount,
-            generatePropertyURI(_metadata.rooms, _metadata.squareFoot, _propertyAddress, _metadata.listPrice)
+            uri
         );
     }
 
@@ -175,17 +171,13 @@ contract AddProperty is IERC1155Receiver {
             bytes(
                 string(
                     abi.encodePacked(
-                        '{"name": "Property",',
-                        '"description": "Property Description",', 
-                        '"image": "",', 
-                        '"attributes": {"rooms": "', 
-                        rooms, 
-                        '", "squareFoot": "', 
-                        squareFoot, 
-                        '", "propertyAddress": "', 
-                        propertyAddr, 
-                        '", "listPrice": "', 
-                        listPrice, 
+                        '{"name":"Property",',
+                        '"description":"Property Description",',
+                        '"image":"",',
+                        '"attributes":{"rooms":"', Strings.toString(rooms),
+                        '","squareFoot":"', Strings.toString(squareFoot),
+                        '","propertyAddress":"', Strings.toHexString(uint256(uint160(propertyAddr)), 20),
+                        '","listPrice":"', Strings.toString(listPrice),
                         '"}}'
                     )
                 )
