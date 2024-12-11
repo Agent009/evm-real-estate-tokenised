@@ -8,15 +8,27 @@ import {ERC1155BurnableUpgradeable} from "@openzeppelin/contracts-upgradeable/to
 import {ERC1155SupplyUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC1155/extensions/ERC1155SupplyUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
+/// @title Property
+/// @notice This contract represents a tokenized real estate property using ERC1155 standard
+/// @dev Implements ERC1155 with access control, burning, and supply tracking capabilities
 contract Property is Initializable, ERC1155Upgradeable, AccessControlUpgradeable, ERC1155BurnableUpgradeable, ERC1155SupplyUpgradeable {
+    /// @notice Role identifier for accounts that can set the URI
     bytes32 public constant URI_SETTER_ROLE = keccak256("URI_SETTER_ROLE");
+
+    /// @notice Role identifier for accounts that can mint new tokens
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
+    /// @notice Prevents the implementation contract from being initialized
+    /// @dev This empty constructor is required for using the contract behind a proxy
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
+    /// @notice Initializes the contract setting up initial roles
+    /// @dev This function replaces the constructor for upgradeable contracts
+    /// @param defaultAdmin Address to be granted the default admin role
+    /// @param minter Address to be granted the minter role
     function initialize(address defaultAdmin, address minter) initializer public {
         __ERC1155_init("");
         __AccessControl_init();
@@ -27,10 +39,19 @@ contract Property is Initializable, ERC1155Upgradeable, AccessControlUpgradeable
         _grantRole(MINTER_ROLE, minter);
     }
 
+    /// @notice Sets the URI for all token types
+    /// @dev Can only be called by accounts with URI_SETTER_ROLE
+    /// @param newuri The new URI to set
     function setURI(string memory newuri) public onlyRole(URI_SETTER_ROLE) {
         _setURI(newuri);
     }
 
+    /// @notice Mints new tokens. Will mint (or burn) if `from` (or `to`) is the zero address.
+    /// @dev Can only be called by accounts with MINTER_ROLE
+    /// @param account The address that will receive the minted tokens
+    /// @param id The token id to mint
+    /// @param amount The amount of tokens to mint
+    /// @param data Additional data with no specified format, sent in call to `_mint`
     function mint(address account, uint256 id, uint256 amount, bytes memory data)
         public
         onlyRole(MINTER_ROLE)
@@ -38,6 +59,12 @@ contract Property is Initializable, ERC1155Upgradeable, AccessControlUpgradeable
         _mint(account, id, amount, data);
     }
 
+    /// @notice Mints multiple token types at once
+    /// @dev Can only be called by accounts with MINTER_ROLE
+    /// @param to The address that will receive the minted tokens
+    /// @param ids Array of token ids to mint
+    /// @param amounts Array of the amounts of tokens to mint
+    /// @param data Additional data with no specified format, sent in call to `_mintBatch`
     function mintBatch(address to, uint256[] memory ids, uint256[] memory amounts, bytes memory data)
         public
         onlyRole(MINTER_ROLE)
@@ -45,8 +72,12 @@ contract Property is Initializable, ERC1155Upgradeable, AccessControlUpgradeable
         _mintBatch(to, ids, amounts, data);
     }
 
-    // The following functions are overrides required by Solidity.
-
+    /// @notice Hook that is called before any token transfer
+    /// @dev This function is overridden to update the token supply
+    /// @param from Address tokens are transferred from
+    /// @param to Address tokens are transferred to
+    /// @param ids Array of token ids being transferred
+    /// @param values Array of amounts of tokens being transferred
     function _update(address from, address to, uint256[] memory ids, uint256[] memory values)
         internal
         override(ERC1155Upgradeable, ERC1155SupplyUpgradeable)
@@ -54,6 +85,11 @@ contract Property is Initializable, ERC1155Upgradeable, AccessControlUpgradeable
         super._update(from, to, ids, values);
     }
 
+    /// @notice Query if a contract implements an interface
+    /// @dev Interface identification is specified in ERC-165
+    /// @param interfaceId The interface identifier, as specified in ERC-165
+    /// @return bool True if the contract implements `interfaceId` and
+    ///         `interfaceId` is not 0xffffffff, false otherwise
     function supportsInterface(bytes4 interfaceId)
         public
         view

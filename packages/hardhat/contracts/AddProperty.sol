@@ -2,7 +2,6 @@
 
 pragma solidity ^0.8.22;
 
-// import {Property} from "./Property.sol";
 import {Property} from "./PropertyERC.sol";
 import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 
@@ -25,7 +24,7 @@ contract AddProperty {
                                  STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
     Property public property;
-    
+
     /*//////////////////////////////////////////////////////////////
                                FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -41,11 +40,14 @@ contract AddProperty {
         uint256 listPrice;
     }
 
+
     AddingProperty[] public properties;
     address[] public propertyOwnersList;
     address[] public users;
     
     mapping(uint256 => address) public propertyAddress; // propertyId to owner address 
+    mapping(address => uint256) public investorShares;    // investor => amount invested
+    mapping(uint256 => mapping(address => uint256)) public propertyInvestments;    // propertyId => (investor => amount)
     mapping(uint256 => PropertyStatus) public propertyStatus;
     mapping(address => bool) public isUser;
 
@@ -103,6 +105,7 @@ contract AddProperty {
      * @param _tokenId The tokenId of the property
      * @param _nftAmount The amount of NFTs to mint to the property lister
      */
+
     function addPropertyToListing(
         address _propertyAddress, 
         uint256 _tokenId, 
@@ -112,7 +115,6 @@ contract AddProperty {
     ) external onlyUser {
         if(_propertyAddress == address(0)) revert AddProperty__InvalidAddress();
         
-        // check the tokenID to make sure the property doesn't already exist
         if(propertyAddress[_tokenId] != address(0)) revert AddProperty__PropertyAlreadyExists();
         
         AddingProperty memory newProperty = AddingProperty(
@@ -127,7 +129,6 @@ contract AddProperty {
         propertyAddress[_tokenId] = _propertyAddress;
         propertyOwnersList.push(msg.sender);
 
-        // set the URI for the property
         property.setURI(
             generatePropertyURI(
                 _metadata.rooms,
@@ -137,10 +138,8 @@ contract AddProperty {
             )
         );
 
-        // mint the NFT to the property lister
         property.mint(msg.sender, _tokenId, _nftAmount, "");
 
-        // emit the event for a new property listing
         emit PropertyAdded(
             _tokenId, 
             msg.sender, 
@@ -151,14 +150,6 @@ contract AddProperty {
         );
     }
 
-    /**
-     * @notice Generates a URI for a property
-     * @param rooms The number of rooms in the property
-     * @param squareFoot The square footage of the property
-     * @param propertyAddr The address of the property
-     * @param listPrice The list price of the property
-     * @return The URI for the property
-     */
     function generatePropertyURI(
         uint256 rooms,
         uint256 squareFoot,
