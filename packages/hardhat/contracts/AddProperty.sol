@@ -3,11 +3,13 @@
 pragma solidity ^0.8.22;
 
 import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
-import {Property} from "./Property.sol";
+import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
+//import {Property} from "./Property.sol";
+import {Property} from "./PropertyERC.sol";
 
 /**
  * @title AddProperty
- * @author Adam B Group 4
+ * @author Adam B Group 4 
  * @notice Contract for listing and managing real estate properties as tokens
  * @dev Handles property listing, investment tracking, and tokenization status
  */
@@ -15,7 +17,6 @@ contract AddProperty is IERC1155Receiver {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
-    error AddProperty__NotOwner();
     error AddProperty__PropertyAlreadyExists();
     error AddProperty__InvalidAddress();
     error AddProperty__UserAlreadyExists();
@@ -24,8 +25,6 @@ contract AddProperty is IERC1155Receiver {
     /*//////////////////////////////////////////////////////////////
                                  STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
-    address public s_owner;
-    uint256 public s_propertyId;
     Property public property;
 
     /*//////////////////////////////////////////////////////////////
@@ -35,18 +34,21 @@ contract AddProperty is IERC1155Receiver {
         address propertyAddress;
         uint256 tokenId;
         uint256 amount;
-        string popertyURI;
+    }
+
+    struct PropertyMetadata {
+        uint256 rooms;
+        uint256 squareFoot;
+        uint256 listPrice;
     }
 
     AddingProperty[] public properties;
     address[] public propertyOwnersList;
     address[] public users;
 
-    mapping(uint256 => address) public propertyAddress; // propertyId to owner address
-    mapping(address => uint256) public investorShares;    // investor => amount invested
-    mapping(uint256 => mapping(address => uint256)) public propertyInvestments;    // propertyId => (investor => amount)
-    mapping(uint256 => PropertyStatus) public propertyStatus;
-    mapping(address => bool) public isUser;
+    mapping(uint256 => address) public propertyAddress; // propertyId to owner address 
+    mapping(uint256 => PropertyStatus) public propertyStatus; // propertyId to property status
+    mapping(address => bool) public isUser; // address to user status
 
     /// @dev In Solidity, when you access a mapping with a key that hasn't been set,
     /// it returns the default value for the value type. For an enum, the default value
@@ -63,20 +65,16 @@ contract AddProperty is IERC1155Receiver {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
     event PropertyAdded(
-        uint256 indexed propertyId,
+        uint256 indexed tokenId,
         address indexed owner,
         address indexed propertyAddress,
-        uint256 tokenId,
         uint256 amount,
         string propertyURI
     );
 
-    /// @dev Emitted when `user` is added to `propertyId`.
-    event UserAdded(uint256 indexed propertyId, address indexed user);
+    event UserAdded(address indexed user);
 
-    constructor(address _owner, uint256 _propertyId, address _property) {
-        s_owner = _owner;
-        s_propertyId = _propertyId;
+    constructor(address _property) {
         property = Property(_property);
     }
 
@@ -96,64 +94,104 @@ contract AddProperty is IERC1155Receiver {
      * @param _user The address of the user
      */
     function addUser(address _user) external {
-        if(msg.sender != s_owner) revert AddProperty__NotOwner();
         if(isUser[_user]) revert AddProperty__UserAlreadyExists();
         users.push(_user);
         isUser[_user] = true;
-        emit UserAdded(s_propertyId, _user);
+
+        emit UserAdded(_user);
     }
 
     /**
- * @notice Adds a property to the listing for users to invest in
- * an NFT is minted to the property owner to fractionalize
- * @param _propertyAddress The address of the property
- * @param _tokenId The tokenId of the property
- * @param _amount The amount of the property
- * @param _nftAmount The amount of NFTs to mint to the property owner
- * @param _propertyURI The URI of the property metadata
- */
+     * @notice Adds a property to the listing for users to invest in
+     * an NFT is minted to the property lister to fractionalize
+     * @param _propertyAddress The address of the property
+     * @param _tokenId The tokenId of the property
+     * @param _nftAmount The amount of NFTs to mint to the property lister
+     */
     function addPropertyToListing(
-        address _propertyAddress,
-        uint256 _tokenId,
-        uint256 _amount,
+        address _propertyAddress, 
+        uint256 _tokenId, 
+        uint256 _propertyAmount,
         uint256 _nftAmount,
-        string memory _propertyURI
+        PropertyMetadata memory _metadata
     ) external onlyUser {
-        // input validation
-        if(propertyStatus[_tokenId] != PropertyStatus.NotListed) revert AddProperty__PropertyAlreadyExists();
         if(_propertyAddress == address(0)) revert AddProperty__InvalidAddress();
-
-        // increment before use to avoid starting at 0
-        s_propertyId++;
-
-        // create and store property
+        
+        // checks the tokenId to make sure it is not already existing
+        if(propertyAddress[_tokenId] != address(0)) revert AddProperty__PropertyAlreadyExists();
+        
         AddingProperty memory newProperty = AddingProperty(
             _propertyAddress,
             _tokenId,
-            _amount,
-            _propertyURI
+            _propertyAmount
         );
         properties.push(newProperty);
-
+        
         // update status and ownership
         propertyStatus[_tokenId] = PropertyStatus.Listed;
-        propertyAddress[s_propertyId] = msg.sender;
+        propertyAddress[_tokenId] = _propertyAddress;
         propertyOwnersList.push(msg.sender);
 
-        // Mint NFT to this contract first
-        property.mint(address(this), s_propertyId, _nftAmount, "");
+        // create a URI for the property
+        property.setURI(
+            generatePropertyURI(
+                _metadata.rooms,
+                _metadata.squareFoot,
+                _propertyAddress,
+                _metadata.listPrice
+            )
+        );
 
+        // Mint NFT to this contract first
+        // property.mint(address(this), s_propertyId, _nftAmount, "");
         // Then transfer the minted tokens to the user
-        property.safeTransferFrom(address(this), msg.sender, s_propertyId, _nftAmount, "");
+        // property.safeTransferFrom(address(this), msg.sender, s_propertyId, _nftAmount, "");
+        property.mint(msg.sender, _tokenId, _nftAmount, "");
 
         emit PropertyAdded(
-            s_propertyId,
-            msg.sender,
-            _propertyAddress,
-            _tokenId,
-            _amount,
-            _propertyURI
+            _tokenId, 
+            msg.sender, 
+            _propertyAddress, 
+            _propertyAmount,
+            generatePropertyURI(_metadata.rooms, _metadata.squareFoot, _propertyAddress, _metadata.listPrice)
         );
+    }
+
+    /**
+     * @notice Generates a URI for a property
+     * @param rooms The number of rooms in the property
+     * @param squareFoot The square footage of the property
+     * @param propertyAddr The address of the property
+     * @param listPrice The list price of the property
+     * @return The URI for the property
+     */
+    function generatePropertyURI(
+        uint256 rooms,
+        uint256 squareFoot,
+        address propertyAddr,
+        uint256 listPrice
+    ) internal pure returns (string memory) {
+        string memory uri = Base64.encode(
+            bytes(
+                string(
+                    abi.encodePacked(
+                        '{"name": "Property",',
+                        '"description": "Property Description",', 
+                        '"image": "",', 
+                        '"attributes": {"rooms": "', 
+                        rooms, 
+                        '", "squareFoot": "', 
+                        squareFoot, 
+                        '", "propertyAddress": "', 
+                        propertyAddr, 
+                        '", "listPrice": "', 
+                        listPrice, 
+                        '"}}'
+                    )
+                )
+            )
+        );
+        return string(abi.encodePacked("data:application/json;base64,", uri));
     }
 
     /*//////////////////////////////////////////////////////////////
