@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import { ethers, upgrades } from "hardhat";
-import { AddProperty, PropertyVault, Property, PropertyToken, IERC20 } from "@typechain-types";
+import { AddProperty, PropertyVault, Property, PropertyToken, PaymentTokenMock } from "@typechain-types";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 
 describe("PropertyVault", function () {
@@ -10,13 +10,16 @@ describe("PropertyVault", function () {
   let addProperty: AddProperty;
   let propertyVault: PropertyVault;
   // Mock ERC20 token to simulate payments
-  let paymentToken: IERC20;
+  let paymentToken: PaymentTokenMock;
   // Contract deployment addresses
   let propertyAddress: SignerWithAddress;
   let propertyTokenAddress: SignerWithAddress;
   let paymentTokenAddress: SignerWithAddress;
   let addPropertyAddress: SignerWithAddress;
   let propertyVaultAddress: SignerWithAddress;
+  // Roles
+  let minterRole: string;
+  let uriSetterRole: string;
   // Signers
   let owner: SignerWithAddress;
   let user: SignerWithAddress;
@@ -26,6 +29,8 @@ describe("PropertyVault", function () {
     property = (await upgrades.deployProxy(Property, [owner.address, user.address])) as unknown as Property;
     await property.waitForDeployment();
     propertyAddress = (await property.getAddress()) as unknown as SignerWithAddress;
+    minterRole = await property.MINTER_ROLE();
+    uriSetterRole = await property.URI_SETTER_ROLE();
 
     const PropertyToken = await ethers.getContractFactory("PropertyToken");
     propertyToken = (await PropertyToken.deploy(owner.address)) as PropertyToken;
@@ -33,7 +38,7 @@ describe("PropertyVault", function () {
     propertyTokenAddress = (await propertyToken.getAddress()) as unknown as SignerWithAddress;
 
     const ERC20Mock = await ethers.getContractFactory("PaymentTokenMock"); // Mock ERC20 token for testing
-    paymentToken = (await ERC20Mock.deploy("MockToken", "MTK")) as IERC20;
+    paymentToken = (await ERC20Mock.deploy("MockToken", "MTK")) as PaymentTokenMock;
     await paymentToken.waitForDeployment();
     paymentTokenAddress = (await paymentToken.getAddress()) as unknown as SignerWithAddress;
 
@@ -59,6 +64,10 @@ describe("PropertyVault", function () {
     await deployContracts(owner);
   });
 
+  const grantRole = async (role: string, address: SignerWithAddress) => {
+    await property.grantRole(role, address);
+  };
+
   // Verifies the `PropertyVault` contract is deployed with correct addresses.
   describe("Deployment", function () {
     it("Should set the correct contract addresses", async function () {
@@ -71,13 +80,17 @@ describe("PropertyVault", function () {
 
   // Tests adding properties to the vault.
   describe("Adding Property to Vault", function () {
+    beforeEach(async function () {
+      await grantRole(minterRole, owner);
+      // await grantRole(minterRole, addPropertyAddress);
+      // await grantRole(uriSetterRole, addPropertyAddress);
+    });
+
     it("Should allow adding a property to the vault", async function () {
       const tokenId = 1;
       const amount = 1;
       const pricePerShare = ethers.parseUnits("0.01", "ether");
-
       await property.mint(owner.address, tokenId, amount, "0x"); // Mint a mock NFT to the owner
-
       await property.setApprovalForAll(propertyVaultAddress, true); // Provide approval for transfer
       await expect(propertyVault.addPropertyToVault(tokenId, pricePerShare))
         .to.emit(propertyVault, "SetSharePrice")
@@ -91,17 +104,29 @@ describe("PropertyVault", function () {
       const tokenId = 1;
       const amount = 1;
       const pricePerShare = ethers.parseUnits("0.01", "ether");
-
       await property.mint(owner.address, tokenId, amount, "0x"); // Mint a mock NFT to the owner
+      // await property.setApprovalForAll(propertyVaultAddress, true); // Provide approval for transfer
 
-      await expect(propertyVault.addPropertyToVault(tokenId, pricePerShare)).to.be.revertedWith(
-        "ERC1155: transfer caller is not owner nor approved",
-      );
+      // try {
+      //   await propertyVault.addPropertyToVault(tokenId, pricePerShare);
+      // } catch (error) {
+      //   // Gives error like: ERC1155MissingApprovalForAll("0x5FC8d32690cc91D4c39d9d3abcBD16989F875707", "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
+      //   console.error("addPropertyToVault error", error);
+      // }
+      // expect(true).to.equal(false); // This line ensures the test fails, and we see the error
+
+      await expect(propertyVault.addPropertyToVault(tokenId, pricePerShare))
+        .to.be.revertedWithCustomError(property, "ERC1155MissingApprovalForAll")
+        .withArgs(propertyVaultAddress, owner.address);
     });
   });
 
   // Verifies share purchasing and fractionalizing properties.
   describe("Fractionalizing NFT Shares", function () {
+    beforeEach(async function () {
+      await grantRole(minterRole, owner);
+    });
+
     it("Should allow purchasing shares of a property", async function () {
       const tokenId = 1;
       const amount = 1;
@@ -114,7 +139,7 @@ describe("PropertyVault", function () {
       await propertyVault.addPropertyToVault(tokenId, pricePerShare);
 
       // Fund user with mock payment tokens
-      await paymentToken.transfer(user.address, ethers.parseUnits("10", "ether"));
+      await paymentToken.mint(user.address, ethers.parseUnits("10", "ether"));
 
       // Approve vault to spend user's payment tokens
       await paymentToken.connect(user).approve(propertyVaultAddress, ethers.parseUnits("10", "ether"));
@@ -140,6 +165,11 @@ describe("PropertyVault", function () {
 
   // Tests the investment withdrawal logic.
   describe("Withdrawing Investment", function () {
+    beforeEach(async function () {
+      await grantRole(minterRole, addPropertyAddress);
+      await grantRole(uriSetterRole, addPropertyAddress);
+    });
+
     it("Should allow users to withdraw their investment", async function () {
       const tokenId = 1;
       const amount = 1;
