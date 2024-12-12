@@ -19,7 +19,6 @@ describe("PropertyVault", function () {
   let propertyVaultAddress: SignerWithAddress;
   // Roles
   let propertyMinterRole: string;
-  let propertyUriSetterRole: string;
   let propertyTokenMinterRole: string;
   // Signers
   let owner: SignerWithAddress;
@@ -31,7 +30,6 @@ describe("PropertyVault", function () {
     await property.waitForDeployment();
     propertyAddress = (await property.getAddress()) as unknown as SignerWithAddress;
     propertyMinterRole = await property.MINTER_ROLE();
-    propertyUriSetterRole = await property.URI_SETTER_ROLE();
 
     const PropertyToken = await ethers.getContractFactory("PropertyToken");
     propertyToken = (await PropertyToken.deploy(owner.address)) as PropertyToken;
@@ -64,6 +62,15 @@ describe("PropertyVault", function () {
     // @ts-expect-error ignore
     [owner, user] = await ethers.getSigners();
     await deployContracts(owner);
+    // console.log("Addresses -> Owner", owner.address, "User", user.address);
+    // console.log(
+    //   "Property",
+    //   propertyAddress,
+    //   "PropertyToken",
+    //   propertyTokenAddress,
+    //   "PaymentToken",
+    //   paymentTokenAddress,
+    // );
   });
 
   const grantPropertyRole = async (role: string, address: SignerWithAddress) => {
@@ -151,15 +158,6 @@ describe("PropertyVault", function () {
       await paymentToken.connect(user).approve(propertyVaultAddress, ethers.parseUnits("10", "ether"));
 
       // Purchase shares
-      console.log("Owner", owner.address, "User", user.address);
-      console.log(
-        "Property",
-        propertyAddress,
-        "PropertyToken",
-        propertyTokenAddress,
-        "PaymentToken",
-        paymentTokenAddress,
-      );
       console.log("AddProperty", addPropertyAddress, "PropertyVault", propertyVaultAddress);
       await expect(propertyVault.connect(user).fractionalizeNFT(shareAmount, tokenId))
         .to.emit(propertyVault, "SharesPurchased")
@@ -191,8 +189,8 @@ describe("PropertyVault", function () {
   // Tests the investment withdrawal logic.
   describe("Withdrawing Investment", function () {
     beforeEach(async function () {
-      await grantPropertyRole(propertyMinterRole, addPropertyAddress);
-      await grantPropertyRole(propertyUriSetterRole, addPropertyAddress);
+      await grantPropertyRole(propertyMinterRole, owner);
+      await grantPropertyTokenRole(propertyTokenMinterRole, propertyVaultAddress);
     });
 
     it("Should allow users to withdraw their investment", async function () {
@@ -206,7 +204,7 @@ describe("PropertyVault", function () {
       await property.setApprovalForAll(propertyVaultAddress, true);
       await propertyVault.addPropertyToVault(tokenId, pricePerShare);
 
-      await paymentToken.transfer(user.address, ethers.parseUnits("10", "ether"));
+      await paymentToken.mint(user.address, ethers.parseUnits("10", "ether"));
       await paymentToken.connect(user).approve(propertyVaultAddress, ethers.parseUnits("10", "ether"));
       await propertyVault.connect(user).fractionalizeNFT(shareAmount, tokenId);
 
@@ -221,7 +219,8 @@ describe("PropertyVault", function () {
 
     it("Should revert if user attempts to withdraw with no investment", async function () {
       const tokenId = 1;
-      await expect(propertyVault.connect(user).withdrawInvestment(tokenId)).to.be.revertedWith(
+      await expect(propertyVault.connect(user).withdrawInvestment(tokenId)).to.be.revertedWithCustomError(
+        propertyVault,
         "PropertyVault__NoInvestment",
       );
     });

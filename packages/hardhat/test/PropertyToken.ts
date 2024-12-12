@@ -9,6 +9,8 @@ describe("PropertyToken", function () {
   let owner: SignerWithAddress;
   let user1: SignerWithAddress;
   let user2: SignerWithAddress;
+  let adminRole: string;
+  let minterRole: string;
 
   beforeEach(async function () {
     // @ts-expect-error ignore
@@ -17,11 +19,17 @@ describe("PropertyToken", function () {
     const Token = await ethers.getContractFactory("PropertyToken");
     token = await Token.deploy(owner.address);
     await token.waitForDeployment();
+    adminRole = await token.DEFAULT_ADMIN_ROLE();
+    minterRole = await token.MINTER_ROLE();
   });
 
   describe("Deployment", function () {
     it("Should set the right owner", async function () {
-      expect(await token.owner()).to.equal(owner.address);
+      expect(await token.hasRole(adminRole, owner.address)).to.equal(true);
+    });
+
+    it("Should set the right minter", async function () {
+      expect(await token.hasRole(minterRole, owner.address)).to.equal(true);
     });
 
     it("Should initialize with correct name and symbol", async function () {
@@ -39,20 +47,19 @@ describe("PropertyToken", function () {
       expect(balance).to.equal(mintAmount);
     });
 
-    it("Should revert if non-owner tries to mint", async function () {
-      const mintAmount = parseUnits("100", 18);
+    it("Should not allow non-minters to mint tokens", async function () {
+      const mintAmount = parseUnits("100", 18); // try {
 
-      // try {
       //   await token.connect(user1).mint(user1.address, mintAmount);
       // } catch (error) {
-      //   // Gives error like: OwnableUnauthorizedAccount("0x70997970C51812dc3A010C7d01b50e0d17dc79C8")
+      //   // Gives error like: AccessControlUnauthorizedAccount("0x70997970C51812dc3A010C7d01b50e0d17dc79C8", "minterRoleAddress")
       //   console.error("Mint error", error);
       // }
       // expect(true).to.equal(false); // This line ensures the test fails, and we see the error
 
       await expect(token.connect(user1).mint(user1.address, mintAmount))
-        .to.be.revertedWithCustomError(token, "OwnableUnauthorizedAccount")
-        .withArgs(user1.address);
+        .to.be.revertedWithCustomError(token, "AccessControlUnauthorizedAccount")
+        .withArgs(user1.address, minterRole);
     });
   });
 
