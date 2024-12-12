@@ -18,8 +18,9 @@ describe("PropertyVault", function () {
   let addPropertyAddress: SignerWithAddress;
   let propertyVaultAddress: SignerWithAddress;
   // Roles
-  let minterRole: string;
-  let uriSetterRole: string;
+  let propertyMinterRole: string;
+  let propertyUriSetterRole: string;
+  let propertyTokenMinterRole: string;
   // Signers
   let owner: SignerWithAddress;
   let user: SignerWithAddress;
@@ -29,13 +30,14 @@ describe("PropertyVault", function () {
     property = (await upgrades.deployProxy(Property, [owner.address, user.address])) as unknown as Property;
     await property.waitForDeployment();
     propertyAddress = (await property.getAddress()) as unknown as SignerWithAddress;
-    minterRole = await property.MINTER_ROLE();
-    uriSetterRole = await property.URI_SETTER_ROLE();
+    propertyMinterRole = await property.MINTER_ROLE();
+    propertyUriSetterRole = await property.URI_SETTER_ROLE();
 
     const PropertyToken = await ethers.getContractFactory("PropertyToken");
     propertyToken = (await PropertyToken.deploy(owner.address)) as PropertyToken;
     await propertyToken.waitForDeployment();
     propertyTokenAddress = (await propertyToken.getAddress()) as unknown as SignerWithAddress;
+    propertyTokenMinterRole = await propertyToken.MINTER_ROLE();
 
     const ERC20Mock = await ethers.getContractFactory("PaymentTokenMock"); // Mock ERC20 token for testing
     paymentToken = (await ERC20Mock.deploy("MockToken", "MTK")) as PaymentTokenMock;
@@ -64,8 +66,12 @@ describe("PropertyVault", function () {
     await deployContracts(owner);
   });
 
-  const grantRole = async (role: string, address: SignerWithAddress) => {
+  const grantPropertyRole = async (role: string, address: SignerWithAddress) => {
     await property.grantRole(role, address);
+  };
+
+  const grantPropertyTokenRole = async (role: string, address: SignerWithAddress) => {
+    await propertyToken.grantRole(role, address);
   };
 
   // Verifies the `PropertyVault` contract is deployed with correct addresses.
@@ -81,9 +87,8 @@ describe("PropertyVault", function () {
   // Tests adding properties to the vault.
   describe("Adding Property to Vault", function () {
     beforeEach(async function () {
-      await grantRole(minterRole, owner);
-      // await grantRole(minterRole, addPropertyAddress);
-      // await grantRole(uriSetterRole, addPropertyAddress);
+      await grantPropertyRole(propertyMinterRole, owner);
+      // await grantPropertyRole(propertyUriSetterRole, addPropertyAddress);
     });
 
     it("Should allow adding a property to the vault", async function () {
@@ -124,7 +129,8 @@ describe("PropertyVault", function () {
   // Verifies share purchasing and fractionalizing properties.
   describe("Fractionalizing NFT Shares", function () {
     beforeEach(async function () {
-      await grantRole(minterRole, owner);
+      await grantPropertyRole(propertyMinterRole, owner);
+      await grantPropertyTokenRole(propertyTokenMinterRole, propertyVaultAddress);
     });
 
     it("Should allow purchasing shares of a property", async function () {
@@ -145,6 +151,16 @@ describe("PropertyVault", function () {
       await paymentToken.connect(user).approve(propertyVaultAddress, ethers.parseUnits("10", "ether"));
 
       // Purchase shares
+      console.log("Owner", owner.address, "User", user.address);
+      console.log(
+        "Property",
+        propertyAddress,
+        "PropertyToken",
+        propertyTokenAddress,
+        "PaymentToken",
+        paymentTokenAddress,
+      );
+      console.log("AddProperty", addPropertyAddress, "PropertyVault", propertyVaultAddress);
       await expect(propertyVault.connect(user).fractionalizeNFT(shareAmount, tokenId))
         .to.emit(propertyVault, "SharesPurchased")
         .withArgs(tokenId, user.address, shareAmount);
@@ -157,7 +173,16 @@ describe("PropertyVault", function () {
       const tokenId = 2; // Non-existent tokenId
       const shareAmount = 5;
 
-      await expect(propertyVault.connect(user).fractionalizeNFT(shareAmount, tokenId)).to.be.revertedWith(
+      // try {
+      //   await propertyVault.connect(user).fractionalizeNFT(shareAmount, tokenId);
+      // } catch (error) {
+      //   // Gives error like: PropertyVault__PropertyNotInVault()
+      //   console.error("fractionalizeNFT error", error);
+      // }
+      // expect(true).to.equal(false); // This line ensures the test fails, and we see the error
+
+      await expect(propertyVault.connect(user).fractionalizeNFT(shareAmount, tokenId)).to.be.revertedWithCustomError(
+        propertyVault,
         "PropertyVault__PropertyNotInVault",
       );
     });
@@ -166,8 +191,8 @@ describe("PropertyVault", function () {
   // Tests the investment withdrawal logic.
   describe("Withdrawing Investment", function () {
     beforeEach(async function () {
-      await grantRole(minterRole, addPropertyAddress);
-      await grantRole(uriSetterRole, addPropertyAddress);
+      await grantPropertyRole(propertyMinterRole, addPropertyAddress);
+      await grantPropertyRole(propertyUriSetterRole, addPropertyAddress);
     });
 
     it("Should allow users to withdraw their investment", async function () {
