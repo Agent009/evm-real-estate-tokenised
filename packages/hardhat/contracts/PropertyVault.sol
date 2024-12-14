@@ -6,34 +6,40 @@ import {AddProperty} from "./AddProperty.sol";
 import {Property} from "./Property.sol";
 import {PropertyToken} from "./PropertyToken.sol";
 import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
-import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
  * @title PropertyVault
- * @author Adam
- * @notice A vault contract that allows users to fractionalize property NFTs
- * into ERC20 tokens and invest in properties using payment tokens
+ * @author Adam B Group 4
+ * @notice A vault contract for fractionalizing real estate NFTs into tradeable ERC20 tokens
+ * @dev This contract handles:
+ *      - Converting property NFTs into ERC20 tokens for fractional ownership
+ *      - Managing investments and share distributions
+ *      - Tracking property values and share prices
+ *      - Enforcing minimum investment lockup periods
+ *      - Processing withdrawals and share sales
  */
 contract PropertyVault is ERC1155Holder {
+    using SafeERC20 for PropertyToken;
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
     error PropertyVault__PropertyNotInVault();
-    error PropertyVault__PropertyAlreadyTokenized();
     error PropertyVault__NoInvestment();
-    error PropertyVault__WithdrawalFailed();
-    
+    error PropertyVault__NotEnoughShares();
+    error PropertyVault__NotEnoughTimePassed();
+    error PropertyVault__PropertyNotListed();
+
     /*//////////////////////////////////////////////////////////////
                                  STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
     AddProperty public immutable i_addProperty;
     Property public immutable i_property;
     PropertyToken public propertyToken;
-    IERC20 public paymentToken;                     // the ERC20 token used for purchases
 
     uint256 public constant NFT_AMOUNT = 1;         // one NFT per property when calling safeTransferFrom
+    uint256 public constant MIN_INVESTMENT_TIME = 30 days;
 
     struct Investor {
         uint256 balance;    
@@ -44,14 +50,15 @@ contract PropertyVault is ERC1155Holder {
     mapping(uint256 => bool) public isPropertyInVault;                // tokenId => bool
     mapping(uint256 => uint256) public propertyValue;                 // tokenId => total ETH invested
     mapping(uint256 => uint256) public sharePrice;                    // tokenId => price per share
+    mapping(uint256 => mapping(address => uint256)) public lastPurchaseTime; // tokenId => (investor address => timestamp)
 
     /*//////////////////////////////////////////////////////////////    
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
-    event PropertyAddedToVault(uint256 indexed tokenId);
     event SetSharePrice(uint256 indexed tokenId, uint256 price);
     event SharesPurchased(uint256 indexed tokenId, address buyer, uint256 amount);
     event Withdrawal(uint256 indexed tokenId, address investor, uint256 amount);
+    event SharesSold(uint256 indexed tokenId, address seller, uint256 amount);
 
     /*//////////////////////////////////////////////////////////////
                                FUNCTIONS
@@ -59,13 +66,11 @@ contract PropertyVault is ERC1155Holder {
     constructor(
         address _addProperty, 
         address _property, 
-        address _propertyToken,
-        address _paymentToken
+        address _propertyToken
     ) {
         i_addProperty = AddProperty(_addProperty);
         i_property = Property(_property);
         propertyToken = PropertyToken(_propertyToken);
-        paymentToken = IERC20(_paymentToken);  
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -78,8 +83,13 @@ contract PropertyVault is ERC1155Holder {
      * @param _pricePerShare The price per share of the property set by the property lister
      */
     function addPropertyToVault(uint256 _tokenId, uint256 _pricePerShare) external {
+        AddProperty.AddingProperty[] memory listings = i_addProperty.getPropertyListings();
+        if (listings.length == 0) revert PropertyVault__PropertyNotListed();
+
         isPropertyInVault[_tokenId] = true;
+        
         sharePrice[_tokenId] = _pricePerShare;
+
         i_property.safeTransferFrom(msg.sender, address(this), _tokenId, NFT_AMOUNT, "");
         emit SetSharePrice(_tokenId, _pricePerShare);
     }
@@ -91,16 +101,15 @@ contract PropertyVault is ERC1155Holder {
      * @param _tokenId The tokenId of the property
      */
     function fractionalizeNFT(uint256 _amount, uint256 _tokenId) external {
-        if (!isPropertyInVault[_tokenId]) revert PropertyVault__PropertyNotInVault();           // check to not add property in twice
-        // if (i_addProperty.propertyStatus(_tokenId) == AddProperty.PropertyStatus.Listed)     // If already fully tokenized then revert
-        //     revert PropertyVault__PropertyAlreadyTokenized();
+        if (!isPropertyInVault[_tokenId]) revert PropertyVault__PropertyNotInVault();           
 
+        lastPurchaseTime[_tokenId][msg.sender] = block.timestamp;
         uint256 cost = _amount * sharePrice[_tokenId];
-        paymentToken.transferFrom(msg.sender, address(this), cost);
+        
+        propertyToken.safeTransferFrom(msg.sender, address(this), cost);
 
-        propertyValue[_tokenId] += _amount;                       // add amount to property value
-        investors[_tokenId][msg.sender].balance += _amount;      // add amount to investor balance
-        investors[_tokenId][msg.sender].shares += _amount;      // add amount to investor shares
+        propertyValue[_tokenId] += cost;                          
+        investors[_tokenId][msg.sender].shares += _amount;      
 
         // mint fractional tokens to buyer
         propertyToken.mint(msg.sender, _amount);
@@ -108,30 +117,54 @@ contract PropertyVault is ERC1155Holder {
         emit SharesPurchased(_tokenId, msg.sender, _amount);
     }
 
-    /**
-     * @notice Withdraws an investment from the vault and transfers the investment back to the investor
-     * @param _tokenId The tokenId of the property
-     */
-    function withdrawInvestment(uint256 _tokenId) external {
-        // get investor balance - may be and easier and better way to write this? 
-        uint256 amount = investors[_tokenId][msg.sender].balance;
-        if(amount == 0) revert PropertyVault__NoInvestment();
+    function sellShares(uint256 _amount, uint256 _tokenId) external {
+        if (!isPropertyInVault[_tokenId]) revert PropertyVault__PropertyNotInVault();
+        if (investors[_tokenId][msg.sender].shares < _amount) 
+            revert PropertyVault__NotEnoughShares();
+        if (block.timestamp < lastPurchaseTime[_tokenId][msg.sender] + MIN_INVESTMENT_TIME) 
+            revert PropertyVault__NotEnoughTimePassed();
+        
+        uint256 paymentAmount = _amount * sharePrice[_tokenId];
+        investors[_tokenId][msg.sender].shares -= _amount;
+        investors[_tokenId][msg.sender].balance -= paymentAmount;
+        
+        // take property tokens from seller
+        propertyToken.safeTransferFrom(msg.sender, address(this), _amount);
+        // burn the tokens 
+        propertyToken.burn(_amount);
+        // send payment tokens to seller
+        propertyToken.safeTransfer(msg.sender, paymentAmount);
 
-        // reset the investor balance and property value
-        investors[_tokenId][msg.sender].balance = 0;
-        propertyValue[_tokenId] -= amount;
-
-        // transfer the payment and revert if fails
-        bool success = paymentToken.transfer(msg.sender, amount);
-        if(!success) revert PropertyVault__WithdrawalFailed();
-
-        emit Withdrawal(_tokenId, msg.sender, amount);
+        emit SharesSold(_tokenId, msg.sender, _amount);
     }
+
+    // /**
+    //  * @notice Withdraws an investment from the vault and transfers the investment back to the investor
+    //  * @param _tokenId The tokenId of the property
+    //  */
+    // function withdrawInvestment(uint256 _tokenId) external {
+    //     // get investor balance - may be and easier and better way to write this? 
+    //     uint256 amount = investors[_tokenId][msg.sender].balance;
+    //     if(amount == 0) revert PropertyVault__NoInvestment();
+
+    //     // reset the investor balance and property value
+    //     investors[_tokenId][msg.sender].balance = 0;
+    //     propertyValue[_tokenId] -= amount;
+
+    //     // transfer the payment and revert if fails
+    //     propertyToken.safeTransfer(msg.sender, amount);
+
+    //     emit Withdrawal(_tokenId, msg.sender, amount);
+    // }
 
     /*//////////////////////////////////////////////////////////////
                              EXTERNAL VIEW
     //////////////////////////////////////////////////////////////*/
     function getAvailableShares(uint256 _tokenId) external view returns (uint256) {
         return investors[_tokenId][msg.sender].shares;
+    }
+
+    function getInvestorShares(uint256 _tokenId, address _investor) external view returns (uint256) {
+        return investors[_tokenId][_investor].shares;
     }
 }
