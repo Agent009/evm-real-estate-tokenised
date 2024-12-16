@@ -31,6 +31,7 @@ describe("PropertyVault", function () {
     squareFoot: 10,
     listPrice: 100000,
   };
+  const MIN_INVESTMENT_TIME = 30 * 24 * 60 * 60; // 30 days in seconds
 
   const deployContracts = async (owner: SignerWithAddress) => {
     const Property = await ethers.getContractFactory("Property");
@@ -233,6 +234,10 @@ describe("PropertyVault", function () {
 
   // Tests the investment withdrawal logic.
   describe("Selling Shares", function () {
+    const tokenId = 1;
+    const pricePerShare = ethers.parseUnits("1", "ether");
+    const shareAmount = 3;
+
     beforeEach(async function () {
       await grantPropertyRole(propertyMinterRole, owner);
       await grantPropertyRole(propertyMinterRole, addPropertyAddress);
@@ -241,12 +246,15 @@ describe("PropertyVault", function () {
     });
 
     it("Should allow users to sell their shares", async function () {
-      const tokenId = 1;
-      const pricePerShare = ethers.parseUnits("1", "ether");
-      const shareAmount = 3;
+      // Purchase shares
+      // const cost = BigInt(shareAmount) * pricePerShare;
       await purchasePropertyShares(user, tokenId, shareAmount, pricePerShare);
-
+      // Advance time by 30 days to satisfy MIN_INVESTMENT_TIME requirement
+      await ethers.provider.send("evm_increaseTime", [MIN_INVESTMENT_TIME]);
+      await ethers.provider.send("evm_mine", []); // Force advance to the next block
       // Sell shares
+      await propertyToken.connect(user).approve(propertyVaultAddress, shareAmount);
+      // await paymentToken.connect(user).approve(propertyVaultAddress, cost);
       await expect(propertyVault.connect(user).sellShares(shareAmount, tokenId))
         .to.emit(propertyVault, "SharesSold")
         .withArgs(tokenId, user.address, shareAmount);
@@ -256,10 +264,22 @@ describe("PropertyVault", function () {
       expect(investorData.shares).to.equal(0);
     });
 
-    it("Should revert if user attempts to sell shares with no investment", async function () {
-      const tokenId = 1;
-      await addPropertyToListing(owner, owner);
-      await expect(propertyVault.connect(user).sellShares(tokenId, 1)).to.be.revertedWithCustomError(
+    it("Should revert if user attempts to sell shares before minimum investment time", async function () {
+      // Purchase shares
+      await purchasePropertyShares(user, tokenId, shareAmount, pricePerShare);
+      // Sell shares before minimum investment time
+      await expect(propertyVault.connect(user).sellShares(shareAmount, tokenId)).to.be.revertedWithCustomError(
+        propertyVault,
+        "PropertyVault__NotEnoughTimePassed",
+      );
+    });
+
+    it("Should revert if user attempts to sell more shares than investment", async function () {
+      // Purchase shares
+      await purchasePropertyShares(user, tokenId, shareAmount, pricePerShare);
+      // Sell shares more than investment
+      await propertyToken.connect(user).approve(propertyVaultAddress, shareAmount);
+      await expect(propertyVault.connect(user).sellShares(10, tokenId)).to.be.revertedWithCustomError(
         propertyVault,
         "PropertyVault__NotEnoughShares",
       );
