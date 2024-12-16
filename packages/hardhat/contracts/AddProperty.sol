@@ -40,9 +40,16 @@
 
 pragma solidity ^0.8.22;
 
+<<<<<<< HEAD
 import {Property} from "./Property.sol";
 import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+=======
+import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
+import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
+//import {Property} from "./Property.sol";
+import {Property} from "./PropertyERC.sol";
+>>>>>>> 9aecc8d4bfc4cab0b20b0ae5c1805405bb237295
 
 /**
  * @title AddProperty
@@ -50,7 +57,7 @@ import "@openzeppelin/contracts/utils/Strings.sol";
  * @notice Contract for listing and managing real estate properties as tokens
  * @dev Handles property listing, investment tracking, and tokenization status
  */
-contract AddProperty {
+contract AddProperty is IERC1155Receiver {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -83,17 +90,22 @@ contract AddProperty {
     AddingProperty[] public properties;
     address[] public propertyOwnersList;
     address[] public users;
-    
+
     mapping(uint256 => address) public propertyAddress; // propertyId to owner address 
     mapping(address => uint256) public investorShares;    // investor => amount invested
     mapping(uint256 => mapping(address => uint256)) public propertyInvestments;    // propertyId => (investor => amount)
     mapping(uint256 => PropertyStatus) public propertyStatus;
     mapping(address => bool) public isUser;
 
-    enum PropertyStatus { 
-        Listed, 
-        FullyFunded, 
-        Tokenized 
+    /// @dev In Solidity, when you access a mapping with a key that hasn't been set,
+    /// it returns the default value for the value type. For an enum, the default value
+    /// is the first defined enum value (index 0).
+    /// So, we're adding an initial state value to overcome this issue.
+    enum PropertyStatus {
+        NotListed,  // Default state
+        Listed,
+        FullyFunded,
+        Tokenized
     }
 
     uint256 private _nextTokenId = 1;
@@ -178,7 +190,15 @@ contract AddProperty {
             )
         );
 
+<<<<<<< HEAD
         property.mint(msg.sender, newTokenId, _nftAmount, "");
+=======
+        // Mint NFT to this contract first
+        // property.mint(address(this), s_propertyId, _nftAmount, "");
+        // Then transfer the minted tokens to the user
+        // property.safeTransferFrom(address(this), msg.sender, s_propertyId, _nftAmount, "");
+        property.mint(msg.sender, _tokenId, _nftAmount, "");
+>>>>>>> 9aecc8d4bfc4cab0b20b0ae5c1805405bb237295
 
         emit PropertyAdded(
             newTokenId, 
@@ -233,4 +253,31 @@ contract AddProperty {
         return users;
     }
 
-}   
+    /*//////////////////////////////////////////////////////////////
+                     IERC1155Receiver IMPLEMENTATION
+    //////////////////////////////////////////////////////////////*/
+    function onERC1155Received(
+        address,
+        address,
+        uint256,
+        uint256,
+        bytes memory
+    ) public virtual override returns (bytes4) {
+        return this.onERC1155Received.selector;
+    }
+
+    function onERC1155BatchReceived(
+        address,
+        address,
+        uint256[] memory,
+        uint256[] memory,
+        bytes memory
+    ) public virtual override returns (bytes4) {
+        return this.onERC1155BatchReceived.selector;
+    }
+
+    // ERC165 support
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return interfaceId == type(IERC1155Receiver).interfaceId;
+    }
+}
