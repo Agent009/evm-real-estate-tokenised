@@ -3,7 +3,7 @@ export const generateUri = async (rooms: number, squareFoot: number, propertyAdd
     JSON.stringify({
       name: "Property",
       description: "Property Description",
-      image: "",
+      image: "ipfs://QmWgZmXVvp83UpLuhRdQUWwT4x8NYPY67kF3u5E2Zqktyn",
       attributes: {
         rooms: "" + rooms,
         squareFoot: "" + squareFoot,
