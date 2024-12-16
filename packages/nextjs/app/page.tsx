@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { DeployProperty } from "@components/property/DeployProperty";
+import { DeployAddProperty } from "@components/property/DeployAddProperty";
 import { Address } from "@components/scaffold-eth";
 import { constants } from "@utils/constants";
 import type { NextPage } from "next";
@@ -23,7 +23,7 @@ const Home: NextPage = () => {
             <p className="my-2 font-medium">Connected Address:</p>
             <Address address={connectedAddress} />
           </div>
-          <DeployProperty />
+          <DeployAddProperty />
         </div>
 
         <div className="flex-grow bg-base-300 w-full mt-16 px-8 py-12">

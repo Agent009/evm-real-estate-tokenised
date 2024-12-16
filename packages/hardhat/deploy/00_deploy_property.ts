@@ -1,9 +1,9 @@
-import {HardhatRuntimeEnvironment} from "hardhat/types";
-import {DeployFunction} from "hardhat-deploy/types";
-import {Contract} from "ethers";
+import { HardhatRuntimeEnvironment } from "hardhat/types";
+import { DeployFunction } from "hardhat-deploy/types";
+import { Contract } from "ethers";
 
 /**
- * Deploys the "Property" contract using the deployer account and constructor arguments set to the deployer address
+ * Deploys the "Property" contract using the deployer account
  *
  * @param hre HardhatRuntimeEnvironment object.
  */
@@ -18,22 +18,16 @@ const deployProperty: DeployFunction = async function (hre: HardhatRuntimeEnviro
     with a random private key in the .env file (then used on hardhat.config.ts)
     You can run the `yarn account` command to check your balance in every network.
   */
-  const {deployer} = await hre.getNamedAccounts();
-  const {deploy} = hre.deployments;
+  const { deployer } = await hre.getNamedAccounts();
+  const { deployProxy } = hre.upgrades;
 
-  const deployment = await deploy("Property", {
-    from: deployer!,
-    // Contract constructor arguments
-    args: [],
-    log: true,
-    // autoMine: can be passed to the "deploy" function to make the deployment process faster on local networks by
-    // automatically mining the contract deployment transaction. There is no effect on live networks.
-    autoMine: true,
-  });
+  const Property = await hre.ethers.getContractFactory("Property");
+  const property = await deployProxy(Property, [deployer, deployer]);
+  await property.waitForDeployment();
+  console.log("👋 Property contract deployed at", await property.getAddress(), "with deployer", deployer);
 
   // Get the deployed contract to interact with it after deploying.
   await hre.ethers.getContract<Contract>("Property", deployer);
-  console.log("👋 Property contract deployed at", deployment.address, "with deployer", deployer);
 };
 
 export default deployProperty;

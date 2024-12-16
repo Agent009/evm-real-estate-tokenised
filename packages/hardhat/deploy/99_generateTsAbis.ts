@@ -8,7 +8,7 @@
 
 import * as fs from "fs";
 import prettier from "prettier";
-import { DeployFunction } from "hardhat-deploy/types";
+import {DeployFunction} from "hardhat-deploy/types";
 
 const generatedContractComment = `
 /**
@@ -45,9 +45,7 @@ function getActualSourcesForContract(sources: Record<string, any>, contractName:
       if (match) {
         const inheritancePart = match[2];
         // Split the inherited contracts by commas to get the list of inherited contracts
-        const inheritedContracts = inheritancePart.split(",").map(contract => `${contract.trim()}.sol`);
-
-        return inheritedContracts;
+        return inheritancePart!.split(",").map(contract => `${contract.trim()}.sol`);
       }
       return [];
     }
@@ -87,8 +85,8 @@ function getContractDataFromDeployments() {
       const { abi, address, metadata } = JSON.parse(
         fs.readFileSync(`${DEPLOYMENTS_DIR}/${chainName}/${contractName}.json`).toString(),
       );
-      const inheritedFunctions = getInheritedFunctions(JSON.parse(metadata).sources, contractName);
-      contracts[contractName] = { address, abi, inheritedFunctions };
+      const inheritedFunctions = getInheritedFunctions(JSON.parse(metadata).sources, contractName!);
+      contracts[contractName!] = { address, abi, inheritedFunctions };
     }
     output[chainId] = contracts;
   }

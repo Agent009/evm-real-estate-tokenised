@@ -40,20 +40,15 @@
 
 pragma solidity ^0.8.22;
 
-<<<<<<< HEAD
-import {Property} from "./Property.sol";
 import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
-=======
 import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
-import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
-//import {Property} from "./Property.sol";
-import {Property} from "./PropertyERC.sol";
->>>>>>> 9aecc8d4bfc4cab0b20b0ae5c1805405bb237295
+import "@openzeppelin/contracts/utils/Strings.sol";
+ import {Property} from "./Property.sol";
+//import {PropertyERC} from "./PropertyERC.sol";
 
 /**
  * @title AddProperty
- * @author Adam B Group 4 
+ * @author Adam B Group 4
  * @notice Contract for listing and managing real estate properties as tokens
  * @dev Handles property listing, investment tracking, and tokenization status
  */
@@ -90,6 +85,7 @@ contract AddProperty is IERC1155Receiver {
     AddingProperty[] public properties;
     address[] public propertyOwnersList;
     address[] public users;
+
 
     mapping(uint256 => address) public propertyAddress; // propertyId to owner address 
     mapping(address => uint256) public investorShares;    // investor => amount invested
@@ -141,6 +137,7 @@ contract AddProperty is IERC1155Receiver {
     /**
      * @notice Adds a user to the list of users
      * @param _user The address of the user
+     * @dev TODO: Should this allow anyone to add a user?
      */
     function addUser(address _user) external {
         if(isUser[_user]) revert AddProperty__UserAlreadyExists();
@@ -175,7 +172,7 @@ contract AddProperty is IERC1155Receiver {
             _propertyAmount
         );
         properties.push(newProperty);
-        
+
         // update status and ownership
         propertyStatus[newTokenId] = PropertyStatus.Listed;
         propertyAddress[newTokenId] = _propertyAddress;
@@ -190,22 +187,20 @@ contract AddProperty is IERC1155Receiver {
             )
         );
 
-<<<<<<< HEAD
         property.mint(msg.sender, newTokenId, _nftAmount, "");
-=======
         // Mint NFT to this contract first
-        // property.mint(address(this), s_propertyId, _nftAmount, "");
+        //property.mint(msg.sender, _tokenId, _nftAmount, "");
+        //property.mint(address(this), _tokenId, _nftAmount, "");
         // Then transfer the minted tokens to the user
         // property.safeTransferFrom(address(this), msg.sender, s_propertyId, _nftAmount, "");
-        property.mint(msg.sender, _tokenId, _nftAmount, "");
->>>>>>> 9aecc8d4bfc4cab0b20b0ae5c1805405bb237295
+        // property.mint(msg.sender, _tokenId, _nftAmount, "");
 
         emit PropertyAdded(
             newTokenId, 
             msg.sender, 
             _propertyAddress, 
             _propertyAmount,
-            generatePropertyURI(_metadata.rooms, _metadata.squareFoot, _propertyAddress, _metadata.listPrice)
+            uri
         );
     }
 
