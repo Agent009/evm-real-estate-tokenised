@@ -71,7 +71,7 @@ contract AddProperty is IERC1155Receiver {
     //////////////////////////////////////////////////////////////*/
     struct AddingProperty {
         address propertyAddress;
-        uint256 newTokenId;
+        uint256 tokenId;
         uint256 amount;
     }
 
@@ -81,13 +81,11 @@ contract AddProperty is IERC1155Receiver {
         uint256 listPrice;
     }
 
-
     AddingProperty[] public properties;
     address[] public propertyOwnersList;
     address[] public users;
 
-
-    mapping(uint256 => address) public propertyAddress; // propertyId to owner address 
+    mapping(uint256 => address) public propertyAddress; // propertyId to owner address
     mapping(address => uint256) public investorShares;    // investor => amount invested
     mapping(uint256 => mapping(address => uint256)) public propertyInvestments;    // propertyId => (investor => amount)
     mapping(uint256 => PropertyStatus) public propertyStatus;
@@ -155,50 +153,42 @@ contract AddProperty is IERC1155Receiver {
      */
 
     function addPropertyToListing(
-        address _propertyAddress, 
+        address _propertyAddress,
         uint256 _propertyAmount,
         uint256 _nftAmount,
         PropertyMetadata memory _metadata
     ) external onlyUser {
         if(_propertyAddress == address(0)) revert AddProperty__InvalidAddress();
-        
-        uint256 newTokenId = _nextTokenId++;
-        
-        if(propertyAddress[newTokenId] != address(0)) revert AddProperty__PropertyAlreadyExists();
-        
+
+        uint256 tokenId = _nextTokenId++;
+
+        if(propertyAddress[tokenId] != address(0)) revert AddProperty__PropertyAlreadyExists();
+
         AddingProperty memory newProperty = AddingProperty(
             _propertyAddress,
-            newTokenId,
+            tokenId,
             _propertyAmount
         );
         properties.push(newProperty);
 
         // update status and ownership
-        propertyStatus[newTokenId] = PropertyStatus.Listed;
-        propertyAddress[newTokenId] = _propertyAddress;
+        propertyStatus[tokenId] = PropertyStatus.Listed;
+        propertyAddress[tokenId] = _propertyAddress;
         propertyOwnersList.push(msg.sender);
+        string memory uri = generatePropertyURI(_metadata.rooms, _metadata.squareFoot, _propertyAddress, _metadata.listPrice);
+        property.setURI(uri);
 
-        property.setURI(
-            generatePropertyURI(
-                _metadata.rooms,
-                _metadata.squareFoot,
-                _propertyAddress,
-                _metadata.listPrice
-            )
-        );
-
-        property.mint(msg.sender, newTokenId, _nftAmount, "");
+        // Mint property NFT to the lister
+        property.mint(msg.sender, tokenId, _nftAmount, "");
         // Mint NFT to this contract first
-        //property.mint(msg.sender, _tokenId, _nftAmount, "");
-        //property.mint(address(this), _tokenId, _nftAmount, "");
+        //property.mint(address(this), tokenId, _nftAmount, "");
         // Then transfer the minted tokens to the user
-        // property.safeTransferFrom(address(this), msg.sender, s_propertyId, _nftAmount, "");
-        // property.mint(msg.sender, _tokenId, _nftAmount, "");
+        //property.safeTransferFrom(address(this), msg.sender, s_propertyId, _nftAmount, "");
 
         emit PropertyAdded(
-            newTokenId, 
-            msg.sender, 
-            _propertyAddress, 
+            tokenId,
+            msg.sender,
+            _propertyAddress,
             _propertyAmount,
             uri
         );
@@ -215,16 +205,16 @@ contract AddProperty is IERC1155Receiver {
                 string(
                     abi.encodePacked(
                         '{"name": "Property",',
-                        '"description": "Property Description",', 
-                        '"image": "ipfs://QmWgZmXVvp83UpLuhRdQUWwT4x8NYPY67kF3u5E2Zqktyn",', 
-                        '"attributes": {"rooms": "', 
-                        Strings.toString(rooms), 
-                        '", "squareFoot": "', 
-                        Strings.toString(squareFoot), 
-                        '", "propertyAddress": "', 
-                        Strings.toHexString(uint160(propertyAddr)), 
-                        '", "listPrice": "', 
-                        Strings.toString(listPrice), 
+                        '"description": "Property Description",',
+                        '"image": "ipfs://QmWgZmXVvp83UpLuhRdQUWwT4x8NYPY67kF3u5E2Zqktyn",',
+                        '"attributes": {"rooms": "',
+                        Strings.toString(rooms),
+                        '", "squareFoot": "',
+                        Strings.toString(squareFoot),
+                        '", "propertyAddress": "',
+                        Strings.toHexString(uint160(propertyAddr)),
+                        '", "listPrice": "',
+                        Strings.toString(listPrice),
                         '"}}'
                     )
                 )

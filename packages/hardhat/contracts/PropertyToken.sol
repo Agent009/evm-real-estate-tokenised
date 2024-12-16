@@ -15,8 +15,8 @@ contract PropertyToken is AccessControl, ERC20, ERC20Burnable, ERC20Permit {
         ERC20("PropertyToken", "MTK")
         ERC20Permit("PropertyToken")
     {
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(MINTER_ROLE, msg.sender);
+        _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
+        _grantRole(MINTER_ROLE, defaultAdmin);
     }
 
     function mint(address to, uint256 amount) public onlyRole(MINTER_ROLE) {

@@ -3,6 +3,7 @@ import { ZeroAddress } from "ethers";
 import { ethers, upgrades } from "hardhat";
 import { AddProperty, Property } from "@typechain-types";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
+import { generateUri } from "./utils";
 
 describe("AddProperty", function () {
   const propertyMetadata = {
@@ -27,22 +28,6 @@ describe("AddProperty", function () {
     await expect(addProperty.connect(connector).addUser(user.address))
       .to.emit(addProperty, "UserAdded")
       .withArgs(user.address);
-  };
-
-  const generateUri = async (rooms: number, squareFoot: number, propertyAddress: string, listPrice: number) => {
-    return `data:application/json;base64,${Buffer.from(
-      JSON.stringify({
-        name: "Property",
-        description: "Property Description",
-        image: "",
-        attributes: {
-          rooms: "" + rooms,
-          squareFoot: "" + squareFoot,
-          propertyAddress: propertyAddress,
-          listPrice: "" + listPrice,
-        },
-      }),
-    ).toString("base64")}`;
   };
 
   beforeEach(async function () {
@@ -125,9 +110,7 @@ describe("AddProperty", function () {
       );
 
       await addUser(owner, user);
-      await expect(
-        addProperty.connect(user).addPropertyToListing(propertyAddress, tokenId, amount, nftAmount, propertyMetadata),
-      )
+      await expect(addProperty.connect(user).addPropertyToListing(propertyAddress, amount, nftAmount, propertyMetadata))
         .to.emit(addProperty, "PropertyAdded")
         .withArgs(tokenId, user.address, propertyAddress, amount, propertyURI);
 
@@ -139,36 +122,33 @@ describe("AddProperty", function () {
 
     it("Should not allow non-user to add a property", async function () {
       await expect(
-        addProperty.connect(user).addPropertyToListing(ZeroAddress, 1, 1000, 100, propertyMetadata),
+        addProperty.connect(user).addPropertyToListing(ZeroAddress, 1000, 100, propertyMetadata),
       ).to.be.revertedWithCustomError(addProperty, "AddProperty__NotUser");
     });
 
     it("Should not allow adding a property with zero address", async function () {
       await addUser(owner, owner);
       await expect(
-        addProperty.connect(owner).addPropertyToListing(ZeroAddress, 1, 1000, 100, propertyMetadata),
+        addProperty.connect(owner).addPropertyToListing(ZeroAddress, 1000, 100, propertyMetadata),
       ).to.be.revertedWithCustomError(addProperty, "AddProperty__InvalidAddress");
     });
 
     it("Should not allow adding a property that already exists", async function () {
       const propertyAddress = "0x1234567890123456789012345678901234567890";
       await addUser(owner, owner);
-      await addProperty.connect(owner).addPropertyToListing(propertyAddress, 1, 1000, 100, propertyMetadata);
+      await addProperty.connect(owner).addPropertyToListing(propertyAddress, 1000, 100, propertyMetadata);
       await expect(
-        addProperty.connect(owner).addPropertyToListing(propertyAddress, 1, 1000, 100, propertyMetadata),
+        addProperty.connect(owner).addPropertyToListing(propertyAddress, 1000, 100, propertyMetadata),
       ).to.be.revertedWithCustomError(addProperty, "AddProperty__PropertyAlreadyExists");
     });
 
     it("Should mint NFT to the owner when adding a property", async function () {
       const propertyAddress = "0x1234567890123456789012345678901234567890";
-      const tokenId = 1;
       const amount = 1000;
       const nftAmount = 100;
 
       await addUser(owner, owner);
-      await addProperty
-        .connect(owner)
-        .addPropertyToListing(propertyAddress, tokenId, amount, nftAmount, propertyMetadata);
+      await addProperty.connect(owner).addPropertyToListing(propertyAddress, amount, nftAmount, propertyMetadata);
       expect(await property.balanceOf(owner.address, 1)).to.equal(nftAmount);
     });
   });
@@ -180,10 +160,10 @@ describe("AddProperty", function () {
       await addUser(owner, owner);
       await addProperty
         .connect(owner)
-        .addPropertyToListing("0x1234567890123456789012345678901234567890", 1, 1000, 100, propertyMetadata);
+        .addPropertyToListing("0x1234567890123456789012345678901234567890", 1000, 100, propertyMetadata);
       await addProperty
         .connect(owner)
-        .addPropertyToListing("0x2345678901234567890123456789012345678901", 2, 2000, 200, propertyMetadata);
+        .addPropertyToListing("0x2345678901234567890123456789012345678901", 2000, 200, propertyMetadata);
     });
 
     it("Should return correct property owners", async function () {
