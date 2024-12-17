@@ -38,6 +38,7 @@
       "@lib/*": ["lib/*"],
       "@scripts/*": ["scripts/*"],
       "@test/*": ["test/*"],
+      "@typechain-types/*": ["./typechain-types/*"]
     },
     "strictNullChecks": true
   },
