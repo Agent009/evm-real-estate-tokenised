@@ -11,6 +11,10 @@ import { TransactionReceipt } from "viem";
 import { Hex } from "viem";
 import { useAccount, useDeployContract } from "wagmi";
 
+/**
+ * FIXME: This is not in use. It should be removed.
+ * @constructor
+ */
 export const DeployAddProperty = () => {
   const { address, isConnected, chainId } = useAccount();
   const { deployContract } = useDeployContract();

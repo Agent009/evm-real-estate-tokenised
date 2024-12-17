@@ -3,7 +3,7 @@ import { DeployFunction } from "hardhat-deploy/types";
 import { Contract } from "ethers";
 
 /**
- * Deploys all of the contracts using the deployer account
+ * Deploys all the contracts using the deployer account
  *
  * @param hre HardhatRuntimeEnvironment object.
  */
@@ -119,6 +119,7 @@ const deployAllContracts: DeployFunction = async function (hre: HardhatRuntimeEn
   ]);
 };
 
+// noinspection JSUnusedGlobalSymbols
 export default deployAllContracts;
 
 // Tags are useful if you have multiple deploy files and only want to run one of them.

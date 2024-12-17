@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { DeployAddProperty } from "@components/property/DeployAddProperty";
 import { Address } from "@components/scaffold-eth";
 import { constants } from "@utils/constants";
 import type { NextPage } from "next";
@@ -9,7 +8,7 @@ import { useAccount } from "wagmi";
 
 const Home: NextPage = () => {
   const { address: connectedAddress } = useAccount();
-  const [activeTab, setActiveTab] = useState("propertyInfo");
+  const [activeTab, setActiveTab] = useState("propertyListings");
 
   return (
     <>
@@ -23,7 +22,6 @@ const Home: NextPage = () => {
             <p className="my-2 font-medium">Connected Address:</p>
             <Address address={connectedAddress} />
           </div>
-          <DeployAddProperty />
         </div>
 
         <div className="flex-grow bg-base-300 w-full mt-16 px-8 py-12">
@@ -32,28 +30,28 @@ const Home: NextPage = () => {
               <div role="tablist" className="tabs tabs-bordered">
                 <a
                   role="tab"
-                  className={`tab ${activeTab === "propertyInfo" ? "tab-active" : ""}`}
-                  onClick={() => setActiveTab("propertyInfo")}
+                  className={`tab ${activeTab === "propertyListings" ? "tab-active" : ""}`}
+                  onClick={() => setActiveTab("propertyListings")}
                 >
-                  Property Info
+                  Property Listings
                 </a>
                 <a
                   role="tab"
-                  className={`tab ${activeTab === "manageTokens" ? "tab-active" : ""}`}
-                  onClick={() => setActiveTab("manageTokens")}
+                  className={`tab ${activeTab === "manageShares" ? "tab-active" : ""}`}
+                  onClick={() => setActiveTab("manageShares")}
                 >
-                  Manage Tokens
+                  Manage Shares
                 </a>
-                <a
-                  role="tab"
-                  className={`tab ${activeTab === "manageBets" ? "tab-active" : ""}`}
-                  onClick={() => setActiveTab("manageBets")}
-                >
-                  Manage Bets
-                </a>
+                {/*<a*/}
+                {/*  role="tab"*/}
+                {/*  className={`tab ${activeTab === "manageBets" ? "tab-active" : ""}`}*/}
+                {/*  onClick={() => setActiveTab("manageBets")}*/}
+                {/*>*/}
+                {/*  Manage Bets*/}
+                {/*</a>*/}
               </div>
-              {/*{activeTab === "propertyInfo" && <PropertyInfo />}*/}
-              {/*{activeTab === "manageTokens" && <ManageTokens />}*/}
+              {/*{activeTab === "propertyListings" && <PropertyListings />}*/}
+              {/*{activeTab === "manageShares" && <ManageShares />}*/}
               {/*{activeTab === "manageBets" && <ManageBets />}*/}
             </div>
           </div>
