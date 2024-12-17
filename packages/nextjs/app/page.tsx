@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { PropertyListings } from "@components/property/PropertyListings";
 import { Address } from "@components/scaffold-eth";
 import { constants } from "@utils/constants";
 import type { NextPage } from "next";
@@ -50,7 +51,7 @@ const Home: NextPage = () => {
                 {/*  Manage Bets*/}
                 {/*</a>*/}
               </div>
-              {/*{activeTab === "propertyListings" && <PropertyListings />}*/}
+              {activeTab === "propertyListings" && <PropertyListings />}
               {/*{activeTab === "manageShares" && <ManageShares />}*/}
               {/*{activeTab === "manageBets" && <ManageBets />}*/}
             </div>
