@@ -6,7 +6,8 @@ import { getPublicClient } from "@wagmi/core";
 import { Account, Address, createWalletClient, getContract, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { hardhat } from "viem/chains";
-import { gasPrices } from "~~/utils";
+
+// import { gasPrices } from "~~/utils";
 
 type HookFunc = (method: string, args?: unknown[] | undefined) => Promise<unknown | undefined>;
 
@@ -106,7 +107,7 @@ export const useWriteData = (address: Address, account?: Account | Address): Hoo
 
       if (tx) {
         const receipt = await publicClient.getTransactionReceipt({ hash: tx });
-        gasPrices(receipt, `usePropertyData -> write (${method})`);
+        // gasPrices(receipt, `usePropertyData -> write (${method})`);
         console.log(`usePropertyData -> write (${method}) -> tx`, receipt.transactionHash);
         return receipt;
       }

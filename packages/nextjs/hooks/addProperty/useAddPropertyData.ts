@@ -1,5 +1,5 @@
 import AddProperty from "@contracts/AddProperty.json";
-import { gasPrices } from "@hooks/property/usePropertyData";
+// import { gasPrices } from "@hooks/property/usePropertyData";
 import { wagmiConfig } from "@services/web3/wagmiConfig";
 import { constants } from "@utils/constants";
 import { getParsedError, notification } from "@utils/scaffold-eth";
@@ -84,7 +84,7 @@ export const useWriteData = (address: Address, account?: Account | Address): Hoo
 
       if (tx) {
         const receipt = await publicClient.getTransactionReceipt({ hash: tx });
-        gasPrices(receipt, `useAddPropertyData -> write (${method})`);
+        // gasPrices(receipt, `useAddPropertyData -> write (${method})`);
         console.log(`useAddPropertyData -> write (${method}) -> tx`, receipt.transactionHash);
         return receipt;
       }

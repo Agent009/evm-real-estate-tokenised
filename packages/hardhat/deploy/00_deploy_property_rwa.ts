@@ -87,10 +87,35 @@ const deployPropertyRwa: DeployFunction = async function (hre: HardhatRuntimeEnv
   console.log(`👋 AddProperty contract deployed at ${addPropertyAddress} by deployer ${deployer}`);
 
   //
+  // Add Payment Token contract
+  //
+  const PaymentToken = await hre.ethers.getContractFactory("PaymentTokenMock");
+  const paymentToken = await PaymentToken.deploy("MockToken", "MTK");
+  await paymentToken.waitForDeployment();
+
+  const paymentTokenAddress = await paymentToken.getAddress();
+  if (!paymentTokenAddress) {
+    throw new Error("Deployment failed for Payment Token, no contract address found.");
+  }
+  console.log("Payment Token Address: ", paymentTokenAddress);
+
+  const deployedPaymentToken = await hre.ethers.getContractAt("PaymentTokenMock", paymentTokenAddress);
+  if (!deployedPaymentToken) {
+    throw new Error("No Contract deployed with name: PaymentToken");
+  }
+
+  console.log(`👋 PaymentToken contract deployed at ${paymentTokenAddress} by deployer ${deployer}`);
+
+  //
   // Property Vault contract
   //
   const PropertyVault = await hre.ethers.getContractFactory("PropertyVault");
-  const propertyVault = await PropertyVault.deploy(addPropertyAddress, propertyAddress, propertyTokenAddress);
+  const propertyVault = await PropertyVault.deploy(
+    addPropertyAddress,
+    propertyAddress,
+    propertyTokenAddress,
+    paymentTokenAddress,
+  );
   await propertyVault.waitForDeployment();
 
   const propertyVaultAddress = await propertyVault.getAddress();
