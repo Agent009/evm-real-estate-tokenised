@@ -1,5 +1,6 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { DeployFunction } from "hardhat-deploy/types";
+import { Contract } from "ethers";
 
 /**
  * Deploys all of the contracts using the deployer account
@@ -18,13 +19,37 @@ const deployAllContracts: DeployFunction = async function (hre: HardhatRuntimeEn
     You can run the `yarn account` command to check your balance in every network.
   */
   const { deployer } = await hre.getNamedAccounts();
-  // const { deploy } = hre.deployments;
+  const { deploy } = hre.deployments;
   const { deployProxy } = hre.upgrades;
 
   if (!deployer) {
     throw new Error("Deployer address is undefined");
   }
   console.log("Deployer: ", deployer);
+
+  const deployContract = async (contractName: string, args: unknown[]) => {
+    await deploy(contractName, {
+      from: deployer,
+      // Contract constructor arguments
+      args: args,
+      log: true,
+      // autoMine: can be passed to the deploy function to make the deployment process faster on local networks by
+      // automatically mining the contract deployment transaction. There is no effect on live networks.
+      autoMine: true,
+    });
+
+    // Get the deployed contract to interact with it after deploying.
+    const contract = await hre.ethers.getContract<Contract>(contractName, deployer);
+    const contractAddress = await contract.getAddress();
+
+    if (!contractAddress) {
+      throw new Error(`Deployment failed for ${contractName}, no contract address found.`);
+    }
+    // console.log(`${contractName} Address:`, addPropertyAddress);
+
+    console.log(`👋 ${contractName} contract deployed at ${contractAddress} by deployer ${deployer}`);
+    return contractAddress;
+  };
 
   //
   // Property contract
@@ -50,87 +75,48 @@ const deployAllContracts: DeployFunction = async function (hre: HardhatRuntimeEn
   //
   // Property Token contract
   //
-  const PropertyToken = await hre.ethers.getContractFactory("PropertyToken");
-  const propertyToken = await PropertyToken.deploy(deployer);
-  await propertyToken.waitForDeployment();
-
-  const propertyTokenAddress = await propertyToken.getAddress();
-  if (!propertyTokenAddress) {
-    throw new Error("Deployment failed for PropertyToken, no contract address found.");
-  }
-  // console.log("Property Token Address: ", propertyTokenAddress);
-
-  const deployedPropertyToken = await hre.ethers.getContractAt("PropertyToken", propertyTokenAddress);
-  if (!deployedPropertyToken) {
-    throw new Error("No Contract deployed with name: PropertyToken");
-  }
-
-  console.log(`👋 PropertyToken contract deployed at ${propertyTokenAddress} by deployer ${deployer}`);
+  // const PropertyToken = await hre.ethers.getContractFactory("PropertyToken");
+  // const propertyToken = await PropertyToken.deploy(deployer);
+  // await propertyToken.waitForDeployment();
+  const propertyTokenAddress = await deployContract("PropertyToken", [deployer]);
 
   //
   // Payment Token Mock contract
   //
-  const PaymentTokenMock = await hre.ethers.getContractFactory("PaymentTokenMock");
-  const paymentToken = await PaymentTokenMock.deploy("MockToken", "MTK");
-  await paymentToken.waitForDeployment();
-
-  const paymentTokenAddress = await propertyToken.getAddress();
-  if (!paymentTokenAddress) {
-    throw new Error("Deployment failed for PropertyToken, no contract address found.");
-  }
-  // console.log("Payment Token Mock Address: ", paymentTokenAddress);
-
-  const deployedPaymentToken = await hre.ethers.getContractAt("PaymentTokenMock", paymentTokenAddress);
-  if (!deployedPaymentToken) {
-    throw new Error("No Contract deployed with name: PaymentTokenMock");
-  }
-
-  console.log(`👋 PaymentTokenMock contract deployed at ${paymentTokenAddress} by deployer ${deployer}`);
+  // const PaymentTokenMock = await hre.ethers.getContractFactory("PaymentTokenMock");
+  // const paymentToken = await PaymentTokenMock.deploy("MockToken", "MTK");
+  // await paymentToken.waitForDeployment();
+  const paymentTokenAddress = await deployContract("PaymentTokenMock", ["MockToken", "MTK"]);
 
   //
   // Add Property contract
   //
-  const AddProperty = await hre.ethers.getContractFactory("AddProperty");
-  const addProperty = await AddProperty.deploy(propertyAddress);
-  await addProperty.waitForDeployment();
-
-  const addPropertyAddress = await addProperty.getAddress();
-  if (!addPropertyAddress) {
-    throw new Error("Deployment failed for AddProperty, no contract address found.");
-  }
-  // console.log("Add Property Address: ", addPropertyAddress);
-
-  const deployedAddProperty = await hre.ethers.getContractAt("AddProperty", addPropertyAddress);
-  if (!deployedAddProperty) {
-    throw new Error("No Contract deployed with name: AddProperty");
-  }
-
-  console.log(`👋 AddProperty contract deployed at ${addPropertyAddress} by deployer ${deployer}`);
+  // const AddProperty = await hre.ethers.getContractFactory("AddProperty");
+  // const addProperty = await AddProperty.deploy(propertyAddress);
+  // await addProperty.waitForDeployment();
+  const addPropertyAddress = await deployContract("AddProperty", [propertyAddress]);
 
   //
   // Property Vault contract
   //
-  const PropertyVault = await hre.ethers.getContractFactory("PropertyVault");
-  const propertyVault = await PropertyVault.deploy(
+  // const PropertyVault = await hre.ethers.getContractFactory("PropertyVault");
+  // const propertyVault = await PropertyVault.deploy(
+  //   addPropertyAddress,
+  //   propertyAddress,
+  //   propertyTokenAddress,
+  //   paymentTokenAddress,
+  // );
+  // await propertyVault.waitForDeployment();
+  // const deployedPropertyVault = await hre.ethers.getContractAt("PropertyVault", propertyVaultAddress);
+  // if (!deployedPropertyVault) {
+  //   throw new Error("No Contract deployed with name: PropertyVault");
+  // }
+  await deployContract("PropertyVault", [
     addPropertyAddress,
     propertyAddress,
     propertyTokenAddress,
     paymentTokenAddress,
-  );
-  await propertyVault.waitForDeployment();
-
-  const propertyVaultAddress = await propertyVault.getAddress();
-  if (!propertyVaultAddress) {
-    throw new Error("Deployment failed for PropertyVault, no contract address found.");
-  }
-  console.log("Property Vault Address: ", addPropertyAddress);
-
-  const deployedPropertyVault = await hre.ethers.getContractAt("PropertyVault", propertyVaultAddress);
-  if (!deployedPropertyVault) {
-    throw new Error("No Contract deployed with name: PropertyVault");
-  }
-
-  console.log(`👋 PropertyVault contract deployed at ${propertyVaultAddress} by deployer ${deployer}`);
+  ]);
 };
 
 export default deployAllContracts;
