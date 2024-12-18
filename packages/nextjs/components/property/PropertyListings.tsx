@@ -5,8 +5,15 @@ import { useAddPropertyReadData, usePropertyReadData } from "@hooks/property";
 import { useScaffoldReadContract } from "@hooks/scaffold-eth";
 import { notification } from "@utils/scaffold-eth";
 import { useAccount } from "wagmi";
-import { AddingProperty } from "~~/types/property";
+import { AddingProperty, PropertyMetadata } from "~~/types/property";
 import { addPropertyContractAddress, constants, getApiUrl, propertyContractAddress } from "~~/utils";
+
+type PropertyURI = {
+  [key: number]: {
+    image: string;
+    attributes: PropertyMetadata;
+  };
+};
 
 export const PropertyListings = () => {
   const { address, isConnected, chainId } = useAccount();
@@ -20,6 +27,7 @@ export const PropertyListings = () => {
     squareFoot: 500,
     listPrice: 100000,
   });
+  const [uri, setUri] = useState<PropertyURI>([]);
   const [loading, setLoading] = useState(false);
   console.log("PropertyListings -> init -> isConnected", isConnected, "chainId", chainId, "mounted", mounted);
   // @ts-expect-error ignore
@@ -133,25 +141,107 @@ export const PropertyListings = () => {
     }
   };
 
+  // Add a new property
+  const getMetadata = async (tokenId: bigint) => {
+    setLoading(true);
+
+    try {
+      console.log(`PropertyListings -> getMetadata -> tokenId`, tokenId);
+
+      if (!tokenId) {
+        notification.error("Please provide the property token ID.");
+        return;
+      }
+
+      const metadata = (await propertyData("uri", [tokenId])) as string;
+      // Extract the base64 part, decode the base64 string and parse the JSON.
+      const decodedMetadata = JSON.parse(atob(metadata.split(",")[1]));
+      console.log("PropertyListings -> getMetadata -> metadata", metadata, "decoded", decodedMetadata);
+      setUri({ [Number(tokenId)]: { image: decodedMetadata.image, attributes: decodedMetadata.attributes } });
+    } catch (error) {
+      console.error("Failed to get token uri -> error", error);
+      // @ts-expect-error ignore
+      notification.error("Failed to get token uri. " + error?.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!mounted || !isConnected || !chainId) return null;
 
   return (
     <div className="flex flex-col items-center p-4 md:min-w-[40rem] w-full">
       {/* List Properties */}
       <div className="mt-5 w-full">
-        <h2 className="text-xl font-bold">Property Listings</h2>
+        <h2 className="text-xl font-bold">Property Listings ({propertyListings?.length || 0})</h2>
         {propertyListings?.length > 0 ? (
           propertyListings.map((property: AddingProperty, index: number) => (
             <div key={index} className="card bg-base-200 p-4 mb-3">
-              {renderLabelAndValue<string>({
-                label: "Property Address",
-                value: property.propertyAddress,
-                size: "1/2",
-              })}
-              {/*<p>Address: {property.propertyAddress}</p>*/}
-              {/*<p>Rooms: {property.rooms}</p>*/}
-              {/*<p>Square Foot: {property.squareFoot}</p>*/}
-              {/*<p>List Price: {property.listPrice} tokens</p>*/}
+              <div className="flex flex-wrap justify-center w-full">
+                {renderLabelAndValue<string>({
+                  label: "Property Address",
+                  value: property.propertyAddress,
+                  size: "1/2",
+                })}
+                {renderLabelAndValue<bigint>({
+                  label: "Token ID",
+                  value: property.tokenId,
+                  size: "1/4",
+                  asETH: false,
+                })}
+                {renderLabelAndValue<bigint>({
+                  label: "Amount",
+                  value: property.amount,
+                  size: "1/4",
+                  asETH: false,
+                })}
+                <button
+                  disabled={loading}
+                  className="btn btn-accent join-item"
+                  onClick={() => getMetadata(property.tokenId)}
+                >
+                  {loading ? (
+                    <span className="loading loading-spinner"></span>
+                  ) : (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-6 w-6"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  )}
+                </button>
+              </div>
+              {uri[Number(property.tokenId)] && (
+                <div className="flex flex-wrap justify-center w-full">
+                  {renderLabelAndValue<bigint>({
+                    label: "Rooms",
+                    value: uri[Number(property.tokenId)].attributes.rooms,
+                    size: "1/4",
+                    asETH: false,
+                  })}
+                  {renderLabelAndValue<bigint>({
+                    label: "Square Foot",
+                    value: uri[Number(property.tokenId)].attributes.squareFoot,
+                    size: "1/4",
+                    asETH: false,
+                  })}
+                  {renderLabelAndValue<bigint>({
+                    label: "List Price",
+                    value: uri[Number(property.tokenId)].attributes.listPrice,
+                    size: "1/4",
+                    asETH: false,
+                  })}
+                </div>
+              )}
             </div>
           ))
         ) : (

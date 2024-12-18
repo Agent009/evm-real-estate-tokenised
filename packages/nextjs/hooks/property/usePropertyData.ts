@@ -39,6 +39,13 @@ export const usePropertyReadData = (address: Address): HookFunc => {
           }
 
           return await contract.read.balanceOf(args);
+        case "uri":
+          if (!args || args.length < 1) {
+            notification.error(`usePropertyData -> read (${method}) -> Please provide the property token ID.`);
+            return null;
+          }
+
+          return await contract.read.uri(args);
         default:
           notification.error(`usePropertyData -> read (${method}) -> error -> invalid method`);
           return null;
