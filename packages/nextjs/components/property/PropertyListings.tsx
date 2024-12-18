@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import Image from "next/image";
 import { renderLabelAndValue } from "@components/property/LabelAndValue";
 import deployedContracts from "@contracts/deployedContracts";
 import { useAddPropertyReadData, usePropertyReadData } from "@hooks/property";
@@ -10,7 +11,9 @@ import { addPropertyContractAddress, constants, getApiUrl, propertyContractAddre
 
 type PropertyURI = {
   [key: number]: {
-    image: string;
+    name?: string;
+    description?: string;
+    image?: string;
     attributes: PropertyMetadata;
   };
 };
@@ -163,7 +166,14 @@ export const PropertyListings = () => {
       // Extract the base64 part, decode the base64 string and parse the JSON.
       const decoded = JSON.parse(atob(metadata.split(",")[1]));
       console.log("PropertyListings -> getMetadata -> nft", nft, "metadata", metadata, "decoded", decoded);
-      setUri({ [Number(tokenId)]: { image: decoded.image, attributes: decoded.attributes } });
+      setUri({
+        [Number(tokenId)]: {
+          name: decoded.name,
+          description: decoded.description,
+          image: decoded.image,
+          attributes: decoded.attributes,
+        },
+      });
       setNftBalance({ [Number(tokenId)]: Number(nft) });
     } catch (error) {
       console.error("Failed to get token uri -> error", error);
@@ -183,79 +193,93 @@ export const PropertyListings = () => {
         <h2 className="text-xl font-bold">Property Listings ({propertyListings?.length || 0})</h2>
         {propertyListings?.length > 0 ? (
           propertyListings.map((property: AddingProperty, index: number) => (
-            <div key={index} className="card bg-base-200 p-4 mb-3">
-              <div className="flex flex-wrap justify-center w-full">
-                {renderLabelAndValue<string>({
-                  label: "Property Address",
-                  value: property.propertyAddress,
-                  size: "1/2",
-                })}
-                {renderLabelAndValue<bigint>({
-                  label: "Token ID",
-                  value: property.tokenId,
-                  size: "1/4",
-                  asETH: false,
-                })}
-                {renderLabelAndValue<bigint>({
-                  label: "Amount",
-                  value: property.amount,
-                  size: "1/4",
-                  asETH: false,
-                })}
-                {nftBalance[Number(property.tokenId)] &&
-                  renderLabelAndValue<bigint>({
-                    label: "NFTs",
-                    value: BigInt(nftBalance[Number(property.tokenId)]),
-                    size: "1/4",
-                    asETH: false,
-                  })}
-                <button
-                  disabled={loading}
-                  className="btn btn-accent join-item"
-                  onClick={() => getMetadata(property.tokenId)}
-                >
-                  {loading ? (
-                    <span className="loading loading-spinner"></span>
-                  ) : (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-6 w-6"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                  )}
-                </button>
-              </div>
+            <div
+              key={index}
+              className={`card bg-base-200 ${uri[Number(property.tokenId)] ? "card-side" : ""} shadow-xl p-4 mb-3`}
+            >
               {uri[Number(property.tokenId)] && (
-                <div className="flex flex-wrap justify-center w-full">
-                  {renderLabelAndValue<bigint>({
-                    label: "Rooms",
-                    value: uri[Number(property.tokenId)].attributes.rooms,
-                    size: "1/4",
-                    asETH: false,
-                  })}
-                  {renderLabelAndValue<bigint>({
-                    label: "Square Foot",
-                    value: uri[Number(property.tokenId)].attributes.squareFoot,
-                    size: "1/4",
-                    asETH: false,
-                  })}
-                  {renderLabelAndValue<bigint>({
-                    label: "List Price",
-                    value: uri[Number(property.tokenId)].attributes.listPrice,
-                    size: "1/4",
-                    asETH: false,
-                  })}
-                </div>
+                <figure className={""}>
+                  <Image
+                    src={
+                      // uri[Number(property.tokenId)].image ||
+                      "https://ipfs.io/ipfs/QmUYY6w5UiEEhpwWPZ6ca8udrR6gFUQnR5rvWzZQJZxrXm"
+                    }
+                    alt={uri[Number(property.tokenId)].name || "Property"}
+                    width={150}
+                    height={150}
+                  />
+                </figure>
               )}
+              <div className="card-body">
+                <div className="flex flex-wrap justify-center w-full">
+                  {renderLabelAndValue<string>({
+                    label: "Property Address",
+                    value: property.propertyAddress,
+                    size: "1/2",
+                  })}
+                  {renderLabelAndValue<bigint>({
+                    label: "Token ID",
+                    value: property.tokenId,
+                    size: "1/4",
+                    asETH: false,
+                  })}
+                  {renderLabelAndValue<bigint>({
+                    label: "Amount",
+                    value: property.amount,
+                    size: "1/4",
+                    asETH: false,
+                  })}
+                  {nftBalance[Number(property.tokenId)] &&
+                    renderLabelAndValue<bigint>({
+                      label: "NFTs",
+                      value: BigInt(nftBalance[Number(property.tokenId)]),
+                      size: "1/4",
+                      asETH: false,
+                    })}
+                  <button disabled={loading} className="btn btn-accent" onClick={() => getMetadata(property.tokenId)}>
+                    {loading ? (
+                      <span className="loading loading-spinner"></span>
+                    ) : (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-6 w-6"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+                {uri[Number(property.tokenId)] && (
+                  <div className="flex flex-wrap justify-center w-full">
+                    {renderLabelAndValue<bigint>({
+                      label: "Rooms",
+                      value: uri[Number(property.tokenId)].attributes.rooms,
+                      size: "1/4",
+                      asETH: false,
+                    })}
+                    {renderLabelAndValue<bigint>({
+                      label: "Square Foot",
+                      value: uri[Number(property.tokenId)].attributes.squareFoot,
+                      size: "1/4",
+                      asETH: false,
+                    })}
+                    {renderLabelAndValue<bigint>({
+                      label: "List Price",
+                      value: uri[Number(property.tokenId)].attributes.listPrice,
+                      size: "1/4",
+                      asETH: false,
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           ))
         ) : (
