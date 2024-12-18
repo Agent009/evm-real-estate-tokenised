@@ -7,6 +7,7 @@ import {ERC1155Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC1
 import {ERC1155BurnableUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC1155/extensions/ERC1155BurnableUpgradeable.sol";
 import {ERC1155SupplyUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC1155/extensions/ERC1155SupplyUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 /// @title Property
 /// @notice This contract represents a tokenized real estate property using ERC1155 standard
@@ -18,6 +19,7 @@ contract Property is Initializable, ERC1155Upgradeable, AccessControlUpgradeable
     /// @notice Role identifier for accounts that can mint new tokens
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
+    mapping(uint256 => string) private _tokenURIs;
     /// @notice Prevents the implementation contract from being initialized
     /// @dev This empty constructor is required for using the contract behind a proxy
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -37,6 +39,7 @@ contract Property is Initializable, ERC1155Upgradeable, AccessControlUpgradeable
 
         _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
         _grantRole(MINTER_ROLE, minter);
+        _grantRole(URI_SETTER_ROLE, minter);
     }
 
     /// @notice Sets the URI for all token types
@@ -97,5 +100,18 @@ contract Property is Initializable, ERC1155Upgradeable, AccessControlUpgradeable
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
+    }
+
+    /// @notice Returns the URI for a given token ID
+    /// @dev This function is overridden to include token IDs in the URI
+    /// @param tokenId The token ID to get the URI for
+    /// @return The URI for the given token ID
+    function uri(uint256 tokenId) public view virtual override(ERC1155Upgradeable) returns (string memory) {
+        string memory tokenURI = _tokenURIs[tokenId];
+        return bytes(tokenURI).length > 0 ? tokenURI : super.uri(tokenId);
+    }
+
+    function setTokenURI(uint256 tokenId, string memory tokenURI) public onlyRole(URI_SETTER_ROLE) {
+        _tokenURIs[tokenId] = tokenURI;
     }
 }

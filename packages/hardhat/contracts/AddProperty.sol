@@ -120,6 +120,7 @@ contract AddProperty is IERC1155Receiver {
 
     constructor(address _property) {
         property = Property(_property);
+        property.setURI("data:application/json;base64,");  
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -176,7 +177,7 @@ contract AddProperty is IERC1155Receiver {
         propertyAddress[tokenId] = _propertyAddress;
         propertyOwnersList.push(msg.sender);
         string memory uri = generatePropertyURI(_metadata.rooms, _metadata.squareFoot, _propertyAddress, _metadata.listPrice);
-        property.setURI(uri);
+        property.setTokenURI(tokenId, uri);
 
         // Mint property NFT to the lister
         property.mint(msg.sender, tokenId, _nftAmount, "");
