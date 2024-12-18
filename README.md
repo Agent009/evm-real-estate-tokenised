@@ -48,6 +48,21 @@ yarn verify --network sepolia # verify on testnet
 
 This command deploys a test smart contract to the local network. The contract is located in `packages/hardhat/contracts` and can be modified to suit your needs. The `yarn deploy` command uses the deploy script located in `packages/hardhat/deploy` to deploy the contract to the network. You can also customize the deploy script.
 
+**CAUTION:** The `deploy` command deploys the `Property` contract as a proxy, and doesn't directly update the definitions in `deployedContracts.ts` for this proxy. The definition and contract address has to be added in manually after each deployment. The abi definition can be fetched from the `artifacts` folder, and then the `address` property should be updated as necessary. You should then end up with something like the following:
+
+```typescript
+const deployedContracts = {
+  CHAIN_ID: {
+    // This is added in manually because the deployProxy method of hardhat doesn't seem to auto-generate the deployment
+    // for this. The ""address"" will need to be updated manually each time a new instance of this contract is deployed.
+    Property: {
+      address: "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707",
+      abi: [],
+    }
+  }
+}
+```
+
 4. On a third terminal, start your NextJS app:
 
 ```

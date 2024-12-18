@@ -39,23 +39,31 @@ export const constants = Object.freeze({
     explorer: "/blockexplorer",
     api: {
       base: cwaServerUrl + (cwaServerUrl?.charAt(cwaServerUrl?.length - 1) !== "/" ? "/" : "") + "api/",
+      addProperty: "add-property",
     },
   },
   // Smart contracts
   account: {
-    deployerMemonic: process.env.MNEMONIC || "",
-    deployerAddress: process.env.DEPLOYER_ADDRESS || "",
-    deployerPrivateKey: process.env.NEXT_PUBLIC_DEPLOYER_PRIVATE_KEY || "",
+    deployerPrivateKey: process.env.DEPLOYER_PRIVATE_KEY || "",
   },
   contracts: {
     property: {
-      sepolia: process.env.PROPERTY_SEPOLIA || "",
+      sepolia: process.env.NEXT_PUBLIC_PROPERTY_SEPOLIA || "",
+    },
+    propertyToken: {
+      sepolia: process.env.NEXT_PUBLIC_PROPERTY_TOKEN_SEPOLIA || "",
+    },
+    addProperty: {
+      sepolia: process.env.NEXT_PUBLIC_ADD_PROPERTY_SEPOLIA || "",
+    },
+    propertyVault: {
+      sepolia: process.env.NEXT_PUBLIC_PROPERTY_VAULT_SEPOLIA || "",
     },
   },
   integrations: {
     alchemy: {
-      apiKey: process.env.ALCHEMY_API_KEY || "",
-      sepolia: `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY || ""}`,
+      apiKey: process.env.NEXT_PUBLIC_ALCHEMY_API_KEY || "",
+      sepolia: `https://eth-sepolia.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY || ""}`,
     },
     etherscan: {
       apiKey: process.env.ETHERSCAN_API_KEY || "",
