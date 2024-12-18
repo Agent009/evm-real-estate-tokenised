@@ -119,8 +119,7 @@ contract AddProperty is IERC1155Receiver {
     event UserAdded(address indexed user);
 
     constructor(address _property) {
-        property = Property(_property);
-        //property.setURI("data:application/json;base64,");
+        property = Property(_property); 
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -49,6 +49,9 @@ describe("AddProperty", function () {
     addProperty = (await AddProperty.deploy(await property.getAddress())) as AddProperty;
     await addProperty.waitForDeployment();
     addPropertyAddress = (await addProperty.getAddress()) as unknown as SignerWithAddress;
+
+    // Grant URI setter role to AddProperty contract
+    await grantRole(uriSetterRole, addPropertyAddress);
   });
 
   describe("Deployment", function () {
@@ -64,7 +67,6 @@ describe("AddProperty", function () {
     });
 
     it("AddProperty contract should be able to set property URIs", async function () {
-      await grantRole(uriSetterRole, addPropertyAddress);
       expect(await property.hasRole(uriSetterRole, addPropertyAddress)).to.equal(true);
     });
   });
@@ -94,7 +96,6 @@ describe("AddProperty", function () {
   describe("Property Listing", function () {
     beforeEach(async function () {
       await grantRole(minterRole, addPropertyAddress);
-      await grantRole(uriSetterRole, addPropertyAddress);
     });
 
     it("Should allow user to add a property to listing", async function () {
@@ -156,7 +157,6 @@ describe("AddProperty", function () {
   describe("View Functions", function () {
     beforeEach(async function () {
       await grantRole(minterRole, addPropertyAddress);
-      await grantRole(uriSetterRole, addPropertyAddress);
       await addUser(owner, owner);
       await addProperty
         .connect(owner)
