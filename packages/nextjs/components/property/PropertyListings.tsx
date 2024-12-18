@@ -14,6 +14,9 @@ type PropertyURI = {
     attributes: PropertyMetadata;
   };
 };
+type NFTBalance = {
+  [key: number]: number;
+};
 
 export const PropertyListings = () => {
   const { address, isConnected, chainId } = useAccount();
@@ -28,6 +31,7 @@ export const PropertyListings = () => {
     listPrice: 100000,
   });
   const [uri, setUri] = useState<PropertyURI>([]);
+  const [nftBalance, setNftBalance] = useState<NFTBalance>([]);
   const [loading, setLoading] = useState(false);
   console.log("PropertyListings -> init -> isConnected", isConnected, "chainId", chainId, "mounted", mounted);
   // @ts-expect-error ignore
@@ -38,6 +42,7 @@ export const PropertyListings = () => {
     functionName: "property",
     args: [],
   });
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const addPropertyData = useAddPropertyReadData(addPropertyAddress);
   const propertyData = usePropertyReadData(propertyAddress || propertyContractAddress);
 
@@ -154,10 +159,12 @@ export const PropertyListings = () => {
       }
 
       const metadata = (await propertyData("uri", [tokenId])) as string;
+      const nft = (await propertyData("balanceOf", [address, tokenId])) as bigint;
       // Extract the base64 part, decode the base64 string and parse the JSON.
-      const decodedMetadata = JSON.parse(atob(metadata.split(",")[1]));
-      console.log("PropertyListings -> getMetadata -> metadata", metadata, "decoded", decodedMetadata);
-      setUri({ [Number(tokenId)]: { image: decodedMetadata.image, attributes: decodedMetadata.attributes } });
+      const decoded = JSON.parse(atob(metadata.split(",")[1]));
+      console.log("PropertyListings -> getMetadata -> nft", nft, "metadata", metadata, "decoded", decoded);
+      setUri({ [Number(tokenId)]: { image: decoded.image, attributes: decoded.attributes } });
+      setNftBalance({ [Number(tokenId)]: Number(nft) });
     } catch (error) {
       console.error("Failed to get token uri -> error", error);
       // @ts-expect-error ignore
@@ -195,6 +202,13 @@ export const PropertyListings = () => {
                   size: "1/4",
                   asETH: false,
                 })}
+                {nftBalance[Number(property.tokenId)] &&
+                  renderLabelAndValue<bigint>({
+                    label: "NFTs",
+                    value: BigInt(nftBalance[Number(property.tokenId)]),
+                    size: "1/4",
+                    asETH: false,
+                  })}
                 <button
                   disabled={loading}
                   className="btn btn-accent join-item"
