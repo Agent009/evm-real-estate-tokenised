@@ -49,8 +49,8 @@ export async function POST(req: Request) {
         2,
         "You must provide the user and property addresses, as well as the number of rooms, square feet and list price.",
       );
-      checkAddress("user address", userAddress);
-      checkAddress("property address", propertyAddress);
+      checkAddress("user", userAddress);
+      checkAddress("property", propertyAddress);
     } catch (error) {
       return NextResponse.json(
         { error: error instanceof Error ? error.message : "An unknown error occurred" },
@@ -123,6 +123,9 @@ export async function POST(req: Request) {
     );
   } catch (error) {
     console.error("Error adding property -> error", error);
-    return NextResponse.json({ error: "Failed to add property." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to add property.", details: error instanceof Error ? error.message : "" },
+      { status: 500 },
+    );
   }
 }

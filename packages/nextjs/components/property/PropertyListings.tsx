@@ -13,12 +13,12 @@ export const PropertyListings = () => {
   const [mounted, setMounted] = useState(false);
   // const [properties, setProperties] = useState<AddingProperty[]>([]);
   const [newProperty, setNewProperty] = useState({
-    propertyAddress: "",
+    propertyAddress: address,
     propertyAmount: 1,
-    nftAmount: 1,
-    rooms: "",
-    squareFoot: "",
-    listPrice: "",
+    nftAmount: 100,
+    rooms: 1,
+    squareFoot: 500,
+    listPrice: 100000,
   });
   const [loading, setLoading] = useState(false);
   console.log("PropertyListings -> init -> isConnected", isConnected, "chainId", chainId, "mounted", mounted);
@@ -89,6 +89,19 @@ export const PropertyListings = () => {
 
     try {
       console.log(`PropertyListings -> submitProperty -> newProperty`, newProperty);
+
+      if (
+        newProperty.propertyAddress === "" ||
+        newProperty.propertyAmount <= 0 ||
+        newProperty.nftAmount <= 0 ||
+        newProperty.rooms <= 0 ||
+        newProperty.squareFoot <= 0 ||
+        newProperty.listPrice <= 0
+      ) {
+        notification.error("Please fill in all required fields.");
+        return;
+      }
+
       const response = await fetch(getApiUrl(constants.routes.api.addProperty), {
         method: "POST",
         body: JSON.stringify({
@@ -104,7 +117,12 @@ export const PropertyListings = () => {
       });
       const data = await response.json();
       console.log("Property added -> data", data);
-      notification.success(data?.message);
+
+      if (data?.message) {
+        notification.success(data?.message);
+      } else {
+        notification.error(data?.error + "\n" + data?.details);
+      }
       // await fetchProperties(); // Refresh property list after addition
     } catch (error) {
       console.error("Failed to add property -> error", error);
@@ -161,7 +179,7 @@ export const PropertyListings = () => {
           </label>
           <label className="form-control w-full max-w-xs">
             <div className="label">
-              <span className="label-text-alt">Properties</span>
+              <span className="label-text">Amount</span>
               {/*<span className="label-text-alt">to add</span>*/}
             </div>
             <input
@@ -175,7 +193,7 @@ export const PropertyListings = () => {
           </label>
           <label className="form-control w-full max-w-xs">
             <div className="label">
-              <span className="label-text-alt">NFT Amount</span>
+              <span className="label-text">NFT Amount</span>
               {/*<span className="label-text-alt">to mint</span>*/}
             </div>
             <input
@@ -188,8 +206,14 @@ export const PropertyListings = () => {
             />
           </label>
         </div>
+      </div>
+      <div className="flex flex-wrap justify-center mt-5">
         <div className="join">
           <label className="form-control w-full max-w-xs">
+            <div className="label">
+              <span className="label-text">Rooms</span>
+              <span className="label-text-alt"></span>
+            </div>
             <input
               className="input input-accent bg-base-200 join-item"
               name="rooms"
@@ -198,12 +222,12 @@ export const PropertyListings = () => {
               value={newProperty.rooms}
               onChange={handleInputChange}
             />
-            <div className="label">
-              <span className="label-text-alt"></span>
-              <span className="label-text-alt"></span>
-            </div>
           </label>
           <label className="form-control w-full max-w-xs">
+            <div className="label">
+              <span className="label-text">Sq Foot</span>
+              <span className="label-text-alt"></span>
+            </div>
             <input
               className="input input-accent bg-base-200 join-item"
               name="squareFoot"
@@ -212,12 +236,12 @@ export const PropertyListings = () => {
               value={newProperty.squareFoot}
               onChange={handleInputChange}
             />
-            <div className="label">
-              <span className="label-text-alt"></span>
-              <span className="label-text-alt"></span>
-            </div>
           </label>
           <label className="form-control w-full max-w-xs">
+            <div className="label">
+              <span className="label-text">List Price</span>
+              <span className="label-text-alt"></span>
+            </div>
             <input
               className="input input-accent bg-base-200 join-item"
               name="listPrice"
@@ -226,18 +250,16 @@ export const PropertyListings = () => {
               value={newProperty.listPrice}
               onChange={handleInputChange}
             />
-            <div className="label">
-              <span className="label-text-alt"></span>
-              <span className="label-text-alt"></span>
-            </div>
           </label>
         </div>
       </div>
 
-      <div className="tooltip tooltip-info" data-tip="Add new property to listing">
-        <button disabled={loading} className="btn btn-accent join-item" onClick={submitProperty}>
-          {loading ? <span className="loading loading-spinner"></span> : "Add Property"}
-        </button>
+      <div className="flex flex-wrap justify-center mt-5">
+        <div className="tooltip tooltip-info" data-tip="Add new property to listing">
+          <button disabled={loading} className="btn btn-accent join-item" onClick={submitProperty}>
+            {loading ? <span className="loading loading-spinner"></span> : "Add Property"}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -12,6 +12,8 @@ const deployAllContracts: DeployFunction = async function (hre: HardhatRuntimeEn
   // We have changed the default signer logic to allow a defined account to deploy the contracts.
   // The DEPLOYER_PRIVATE_KEY environment variable should be set before running the script.
   // In the absence of the DEPLOYER_PRIVATE_KEY, the default signer will be used.
+  // If you get the following error, make sure to get some funds to the deployer account and try again.
+  // ProviderError: Sender doesn't have enough funds to send tx. The max upfront cost is: ___ and the sender's balance is: 0.
   // const { deployer } = await hre.getNamedAccounts();
   const [defaultSigner] = await hre.ethers.getSigners();
   const { deploy } = hre.deployments;

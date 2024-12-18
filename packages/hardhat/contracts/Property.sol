@@ -20,6 +20,7 @@ contract Property is Initializable, ERC1155Upgradeable, AccessControlUpgradeable
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
     mapping(uint256 => string) private _tokenURIs;
+
     /// @notice Prevents the implementation contract from being initialized
     /// @dev This empty constructor is required for using the contract behind a proxy
     /// @custom:oz-upgrades-unsafe-allow constructor
