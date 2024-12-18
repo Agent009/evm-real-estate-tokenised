@@ -3,7 +3,7 @@ import deployedContracts from "@contracts/deployedContracts";
 import { Chain, getContract } from "viem";
 import { hardhat } from "viem/chains";
 import { chainIdToChain, checkAddress, checkParameters, gasPrices } from "~~/utils";
-import { bootstrap } from "~~/utils/server";
+import { getContractInstance } from "~~/utils/server";
 
 export type PropertyRequest = {
   chainId: number;
@@ -60,15 +60,12 @@ export async function POST(req: Request) {
 
     // Get contract details for AddProperty
     const chain: Chain = chainIdToChain(chainId || hardhat.id) || hardhat;
-    const { publicClient, walletClient } = await bootstrap(MSG_PREFIX, chain);
-    // @ts-expect-error ignore
-    const contractData = deployedContracts[String(chain.id)]?.AddProperty;
-
-    if (!contractData) {
-      return NextResponse.json({ error: "Contract not deployed on the specified chain." }, { status: 400 });
-    }
-
-    const { address: contractAddress, abi } = contractData;
+    const { contract: addPropertyContract, publicClient } = await getContractInstance(
+      MSG_PREFIX + "-> AddProperty",
+      "AddProperty",
+      chain,
+    );
+    // const { contract: propertyContract } = await getContractInstance(MSG_PREFIX + "-> Property", "Property", chain);
     // Encode the `addPropertyToListing` method using viem
     // const addPropertyCallData = {
     //   abi,
@@ -89,20 +86,23 @@ export async function POST(req: Request) {
     // const receipt = await walletClient.writeContract(addPropertyCallData);
     // console.log("Property added. Transaction receipt:", receipt);
 
-    const contract = getContract({
-      abi,
-      address: contractAddress,
-      client: {
-        public: publicClient,
-        wallet: walletClient,
-      },
-    });
+    // Step 1: Add user
+    const isUser = await addPropertyContract.read.isUser([userAddress]);
 
-    if (!contract) {
-      return NextResponse.json({ error: "Error getting an instance of the contract." }, { status: 400 });
+    if (!isUser) {
+      const addUserTx = await addPropertyContract.write.addUser([userAddress]);
+      const addUserReceipt = await publicClient.waitForTransactionReceipt({ hash: addUserTx });
+      console.log(`${MSG_PREFIX} -> addUserTx`, addUserReceipt.transactionHash);
     }
 
-    const addPropertyTx = await contract.write.addPropertyToListing([
+    // Step n: Add property listing
+    const isPropertyAddressListed = await addPropertyContract.read.isPropertyAddressListed([propertyAddress]);
+
+    if (isPropertyAddressListed) {
+      return NextResponse.json({ message: "The property is already listed." }, { status: 200 });
+    }
+
+    const addPropertyTx = await addPropertyContract.write.addPropertyToListing([
       propertyAddress,
       propertyAmount,
       nftAmount,
@@ -117,7 +117,10 @@ export async function POST(req: Request) {
     console.log(`${MSG_PREFIX} -> addPropertyTx`, addPropertyReceipt.transactionHash);
 
     // Return success response
-    return NextResponse.json({ message: "Property added successfully.", receipt: addPropertyReceipt }, { status: 200 });
+    return NextResponse.json(
+      { message: "Property added successfully.", data: { tx: addPropertyReceipt.transactionHash } },
+      { status: 200 },
+    );
   } catch (error) {
     console.error("Error adding property -> error", error);
     return NextResponse.json({ error: "Failed to add property." }, { status: 500 });

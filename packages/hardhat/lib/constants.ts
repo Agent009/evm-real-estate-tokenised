@@ -4,6 +4,7 @@ dotenv.config();
 const alchemyAPIKey = process.env.ALCHEMY_API_KEY || "";
 export const constants = Object.freeze({
   account: {
+    deployerAddress: process.env.DEPLOYER_ADDRESS || "",
     deployerPrivateKey: process.env.DEPLOYER_PRIVATE_KEY || "",
   },
   contracts: {

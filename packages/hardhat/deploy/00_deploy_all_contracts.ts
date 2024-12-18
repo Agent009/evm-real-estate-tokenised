@@ -1,6 +1,7 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { DeployFunction } from "hardhat-deploy/types";
 import { Contract } from "ethers";
+import { constants } from "../lib/constants";
 
 /**
  * Deploys all the contracts using the deployer account
@@ -8,28 +9,27 @@ import { Contract } from "ethers";
  * @param hre HardhatRuntimeEnvironment object.
  */
 const deployAllContracts: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-  /*
-    On localhost, the deployer account is the one that comes with Hardhat, which is already funded.
-
-    When deploying to live networks (e.g `yarn deploy --network sepolia`), the deployer account
-    should have sufficient balance to pay for the gas fees for contract creation.
-
-    You can generate a random account with `yarn generate` which will fill DEPLOYER_PRIVATE_KEY
-    with a random private key in the .env file (then used on hardhat.config.ts)
-    You can run the `yarn account` command to check your balance in every network.
-  */
-  const { deployer } = await hre.getNamedAccounts();
+  // We have changed the default signer logic to allow a defined account to deploy the contracts.
+  // The DEPLOYER_PRIVATE_KEY environment variable should be set before running the script.
+  // In the absence of the DEPLOYER_PRIVATE_KEY, the default signer will be used.
+  // const { deployer } = await hre.getNamedAccounts();
+  const [defaultSigner] = await hre.ethers.getSigners();
   const { deploy } = hre.deployments;
   const { deployProxy } = hre.upgrades;
 
-  if (!deployer) {
-    throw new Error("Deployer address is undefined");
+  if (!defaultSigner) {
+    throw new Error("The default signer is undefined.");
   }
-  console.log("Deployer: ", deployer);
+
+  const adminSigner = constants.account.deployerPrivateKey
+    ? new hre.ethers.Wallet(`0x${constants.account.deployerPrivateKey}`, hre.ethers.provider)
+    : defaultSigner!;
+  const adminAddress: string = adminSigner.address;
+  console.log("Deployer", adminAddress);
 
   const deployContract = async (contractName: string, args: unknown[]) => {
     await deploy(contractName, {
-      from: deployer,
+      from: `0x${constants.account.deployerPrivateKey}`,
       // Contract constructor arguments
       args: args,
       log: true,
@@ -39,7 +39,7 @@ const deployAllContracts: DeployFunction = async function (hre: HardhatRuntimeEn
     });
 
     // Get the deployed contract to interact with it after deploying.
-    const contract = await hre.ethers.getContract<Contract>(contractName, deployer);
+    const contract = await hre.ethers.getContract<Contract>(contractName, adminSigner);
     const contractAddress = await contract.getAddress();
 
     if (!contractAddress) {
@@ -47,8 +47,11 @@ const deployAllContracts: DeployFunction = async function (hre: HardhatRuntimeEn
     }
     // console.log(`${contractName} Address:`, addPropertyAddress);
 
-    console.log(`👋 ${contractName} contract deployed at ${contractAddress} by deployer ${deployer}`);
-    return contractAddress;
+    console.log(`👋 ${contractName} contract deployed at ${contractAddress} by deployer ${adminAddress}`);
+    return {
+      contract,
+      contractAddress,
+    };
   };
 
   //
@@ -56,7 +59,7 @@ const deployAllContracts: DeployFunction = async function (hre: HardhatRuntimeEn
   //
   const Property = await hre.ethers.getContractFactory("Property");
   // Deploy the proxy contract
-  const property = await deployProxy(Property, [deployer, deployer]);
+  const property = await deployProxy(Property, [adminAddress, adminAddress]);
   await property.waitForDeployment();
 
   const propertyAddress = await property.getAddress();
@@ -65,12 +68,14 @@ const deployAllContracts: DeployFunction = async function (hre: HardhatRuntimeEn
   }
   // console.log("Property Address: ", propertyAddress);
 
-  const deployedProperty = await hre.ethers.getContractAt("Property", propertyAddress);
+  const deployedProperty = await hre.ethers.getContractAt("Property", propertyAddress, adminSigner);
   if (!deployedProperty) {
     throw new Error("No Contract deployed with name: Property");
   }
 
-  console.log(`👋 Property contract deployed at ${propertyAddress} by deployer ${deployer}`);
+  console.log(`👋 Property contract deployed at ${propertyAddress} by deployer ${adminAddress}`);
+  const propertyMinterRole = await deployedProperty.MINTER_ROLE();
+  const propertyUriSetterRole = await deployedProperty.URI_SETTER_ROLE();
 
   //
   // Property Token contract
@@ -78,7 +83,17 @@ const deployAllContracts: DeployFunction = async function (hre: HardhatRuntimeEn
   // const PropertyToken = await hre.ethers.getContractFactory("PropertyToken");
   // const propertyToken = await PropertyToken.deploy(deployer);
   // await propertyToken.waitForDeployment();
-  const propertyTokenAddress = await deployContract("PropertyToken", [deployer]);
+  const { contract: deployedPropertyToken, contractAddress: propertyTokenAddress } = await deployContract(
+    "PropertyToken",
+    [adminAddress],
+  );
+  // const deployedPropertyToken = await hre.ethers.getContractAt("PropertyToken", propertyTokenAddress);
+  if (!deployedPropertyToken) {
+    throw new Error("No Contract deployed with name: PropertyToken");
+  }
+
+  // @ts-expect-error ignore
+  const propertyTokenMinterRole = await deployedPropertyToken.MINTER_ROLE();
 
   //
   // Payment Token Mock contract
@@ -86,7 +101,7 @@ const deployAllContracts: DeployFunction = async function (hre: HardhatRuntimeEn
   // const PaymentTokenMock = await hre.ethers.getContractFactory("PaymentTokenMock");
   // const paymentToken = await PaymentTokenMock.deploy("MockToken", "MTK");
   // await paymentToken.waitForDeployment();
-  const paymentTokenAddress = await deployContract("PaymentTokenMock", ["MockToken", "MTK"]);
+  const { contractAddress: paymentTokenAddress } = await deployContract("PaymentTokenMock", ["MockToken", "MTK"]);
 
   //
   // Add Property contract
@@ -94,7 +109,7 @@ const deployAllContracts: DeployFunction = async function (hre: HardhatRuntimeEn
   // const AddProperty = await hre.ethers.getContractFactory("AddProperty");
   // const addProperty = await AddProperty.deploy(propertyAddress);
   // await addProperty.waitForDeployment();
-  const addPropertyAddress = await deployContract("AddProperty", [propertyAddress]);
+  const { contractAddress: addPropertyAddress } = await deployContract("AddProperty", [propertyAddress]);
 
   //
   // Property Vault contract
@@ -111,12 +126,26 @@ const deployAllContracts: DeployFunction = async function (hre: HardhatRuntimeEn
   // if (!deployedPropertyVault) {
   //   throw new Error("No Contract deployed with name: PropertyVault");
   // }
-  await deployContract("PropertyVault", [
+  const { contractAddress: propertyVaultAddress } = await deployContract("PropertyVault", [
     addPropertyAddress,
     propertyAddress,
     propertyTokenAddress,
     paymentTokenAddress,
   ]);
+
+  // Grant the necessary roles and approvals
+  console.log("Granting roles and approvals...");
+  await deployedProperty.grantRole(propertyMinterRole, adminAddress);
+  console.log("--->>> deployedProperty.grantRole(propertyMinterRole, adminAddress)");
+  await deployedProperty.grantRole(propertyMinterRole, addPropertyAddress);
+  console.log("--->>> deployedProperty.grantRole(propertyMinterRole, addPropertyAddress)");
+  await deployedProperty.grantRole(propertyUriSetterRole, addPropertyAddress);
+  console.log("--->>> deployedProperty.grantRole(propertyUriSetterRole, addPropertyAddress)");
+  await deployedProperty.setApprovalForAll(propertyVaultAddress, true);
+  console.log("--->>> deployedProperty.setApprovalForAll(propertyVaultAddress, true)");
+  // @ts-expect-error ignore
+  await deployedPropertyToken.grantRole(propertyTokenMinterRole, propertyVaultAddress);
+  console.log("--->>> deployedPropertyToken.grantRole(propertyTokenMinterRole, propertyVaultAddress)");
 };
 
 // noinspection JSUnusedGlobalSymbols

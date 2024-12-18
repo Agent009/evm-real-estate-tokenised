@@ -3,6 +3,7 @@ import { renderLabelAndValue } from "@components/property/LabelAndValue";
 import deployedContracts from "@contracts/deployedContracts";
 import { useAddPropertyReadData, usePropertyReadData } from "@hooks/property";
 import { useScaffoldReadContract } from "@hooks/scaffold-eth";
+import { notification } from "@utils/scaffold-eth";
 import { useAccount } from "wagmi";
 import { AddingProperty } from "~~/types/property";
 import { addPropertyContractAddress, constants, getApiUrl, propertyContractAddress } from "~~/utils";
@@ -103,9 +104,12 @@ export const PropertyListings = () => {
       });
       const data = await response.json();
       console.log("Property added -> data", data);
+      notification.success(data?.message);
       // await fetchProperties(); // Refresh property list after addition
     } catch (error) {
       console.error("Failed to add property -> error", error);
+      // @ts-expect-error ignore
+      notification.error("Failed to add property. " + error?.message);
     } finally {
       setLoading(false);
     }
@@ -115,11 +119,10 @@ export const PropertyListings = () => {
 
   return (
     <div className="flex flex-col items-center p-4 md:min-w-[40rem] w-full">
-
       {/* List Properties */}
       <div className="mt-5 w-full">
         <h2 className="text-xl font-bold">Property Listings</h2>
-        {propertyListings.length > 0 ? (
+        {propertyListings?.length > 0 ? (
           propertyListings.map((property: AddingProperty, index: number) => (
             <div key={index} className="card bg-base-200 p-4 mb-3">
               {renderLabelAndValue<string>({
@@ -228,14 +231,9 @@ export const PropertyListings = () => {
               <span className="label-text-alt"></span>
             </div>
           </label>
-
-          {/*<div className="tooltip tooltip-info" data-tip="Add new property to listing">*/}
-          {/*  <button disabled={loading} className="btn btn-accent join-item" onClick={submitProperty}>*/}
-          {/*    {loading ? <span className="loading loading-spinner"></span> : "Add Property"}*/}
-          {/*  </button>*/}
-          {/*</div>*/}
         </div>
       </div>
+
       <div className="tooltip tooltip-info" data-tip="Add new property to listing">
         <button disabled={loading} className="btn btn-accent join-item" onClick={submitProperty}>
           {loading ? <span className="loading loading-spinner"></span> : "Add Property"}
