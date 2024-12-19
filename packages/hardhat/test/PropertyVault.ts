@@ -119,6 +119,14 @@ describe("PropertyVault", function () {
     expect(investorData.shares).to.equal(shareAmount);
   };
 
+  const grantPropertyRole = async (role: string, address: SignerWithAddress) => {
+    await property.grantRole(role, address);
+  };
+
+  const grantPropertyTokenRole = async (role: string, address: SignerWithAddress) => {
+    await propertyToken.grantRole(role, address);
+  };
+
   beforeEach(async function () {
     // @ts-expect-error ignore
     [owner, user] = await ethers.getSigners();
@@ -133,14 +141,6 @@ describe("PropertyVault", function () {
     //   paymentTokenAddress,
     // );
   });
-
-  const grantPropertyRole = async (role: string, address: SignerWithAddress) => {
-    await property.grantRole(role, address);
-  };
-
-  const grantPropertyTokenRole = async (role: string, address: SignerWithAddress) => {
-    await propertyToken.grantRole(role, address);
-  };
 
   // Verifies the `PropertyVault` contract is deployed with correct addresses.
   describe("Deployment", function () {

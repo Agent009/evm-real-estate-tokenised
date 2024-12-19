@@ -1,11 +1,8 @@
 import { NextResponse } from "next/server";
-import deployedContracts from "@contracts/deployedContracts";
-import { Chain, getContract } from "viem";
-import { hardhat } from "viem/chains";
-import { chainIdToChain, checkAddress, checkParameters, gasPrices } from "~~/utils";
+import { checkAddress, checkParameters, gasPrices } from "~~/utils";
 import { getContractInstance } from "~~/utils/server";
 
-export type PropertyRequest = {
+export type RequestPayload = {
   chainId: number;
   propertyAddress: string;
   propertyAmount: string;
@@ -21,7 +18,7 @@ const MSG_PREFIX = `api -> POST add-property`;
 export async function POST(req: Request) {
   try {
     // Parse the request body
-    const body = (await req.json()) as PropertyRequest;
+    const body = (await req.json()) as RequestPayload;
     const { chainId, userAddress, propertyAddress, propertyAmount, nftAmount, rooms, squareFoot, listPrice } = body;
     console.log(
       MSG_PREFIX,
@@ -46,12 +43,13 @@ export async function POST(req: Request) {
     try {
       checkParameters(
         [userAddress, propertyAddress, String(rooms), String(squareFoot), String(listPrice)],
-        2,
+        5,
         "You must provide the user and property addresses, as well as the number of rooms, square feet and list price.",
       );
       checkAddress("user", userAddress);
       checkAddress("property", propertyAddress);
     } catch (error) {
+      console.error(MSG_PREFIX, "-> error", error);
       return NextResponse.json(
         { error: error instanceof Error ? error.message : "An unknown error occurred" },
         { status: 400 },
@@ -59,11 +57,10 @@ export async function POST(req: Request) {
     }
 
     // Get contract details for AddProperty
-    const chain: Chain = chainIdToChain(chainId || hardhat.id) || hardhat;
     const { contract: addPropertyContract, publicClient } = await getContractInstance(
       MSG_PREFIX + "-> AddProperty",
       "AddProperty",
-      chain,
+      chainId,
     );
     // const { contract: propertyContract } = await getContractInstance(MSG_PREFIX + "-> Property", "Property", chain);
     // Encode the `addPropertyToListing` method using viem
@@ -86,7 +83,7 @@ export async function POST(req: Request) {
     // const receipt = await walletClient.writeContract(addPropertyCallData);
     // console.log("Property added. Transaction receipt:", receipt);
 
-    // Step 1: Add user
+    // ===STEP=== Add user
     const isUser = await addPropertyContract.read.isUser([userAddress]);
 
     if (!isUser) {
@@ -95,7 +92,7 @@ export async function POST(req: Request) {
       console.log(`${MSG_PREFIX} -> addUserTx`, addUserReceipt.transactionHash);
     }
 
-    // Step n: Add property listing
+    // ===STEP=== Add property listing
     const isPropertyAddressListed = await addPropertyContract.read.isPropertyAddressListed([propertyAddress]);
 
     if (isPropertyAddressListed) {
@@ -122,7 +119,7 @@ export async function POST(req: Request) {
       { status: 200 },
     );
   } catch (error) {
-    console.error("Error adding property -> error", error);
+    console.error(MSG_PREFIX, "Error adding property -> error", error);
     return NextResponse.json(
       { error: "Failed to add property.", details: error instanceof Error ? error.message : "" },
       { status: 500 },

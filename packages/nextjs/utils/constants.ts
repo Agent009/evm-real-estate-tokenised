@@ -40,6 +40,7 @@ export const constants = Object.freeze({
     api: {
       base: cwaServerUrl + (cwaServerUrl?.charAt(cwaServerUrl?.length - 1) !== "/" ? "/" : "") + "api/",
       addProperty: "add-property",
+      addUser: "add-property/user",
     },
   },
   // Smart contracts

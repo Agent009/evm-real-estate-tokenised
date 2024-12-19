@@ -1,8 +1,9 @@
 import deployedContracts from "@contracts/deployedContracts";
 import { constants } from "@utils/constants";
-import { publicClientFor, walletClientFor } from "@utils/index";
+import { chainIdToChain, publicClientFor, walletClientFor } from "@utils/index";
 import { Chain, formatEther, getContract } from "viem";
 import { PrivateKeyAccount, privateKeyToAccount } from "viem/accounts";
+import { hardhat } from "viem/chains";
 
 export const deployerAccount = privateKeyToAccount(`0x${constants.account.deployerPrivateKey}`);
 
@@ -38,17 +39,18 @@ export const bootstrap = async (
 export const getContractInstance = async (
   msgPrefix = "scripts",
   contractName: string,
-  chain_?: Chain | undefined,
+  chainId_?: number | undefined,
   deployerAccount_: PrivateKeyAccount = deployerAccount,
 ) => {
+  const chain: Chain = chainIdToChain(chainId_ || hardhat.id) || hardhat;
   // Initialise the public and wallet clients.
-  const { publicClient, walletClient } = await bootstrap(msgPrefix, chain_, deployerAccount_);
+  const { publicClient, walletClient } = await bootstrap(msgPrefix, chain, deployerAccount_);
   // Get the deployed contract data.
   // @ts-expect-error ignore
   const contractData = deployedContracts[String(chain_.id)]?.[contractName];
 
   if (!contractData) {
-    throw Error(`${contractName} contract not deployed on the specified chain (${chain_?.name}).`);
+    throw Error(`${contractName} contract not deployed on the specified chain (${chain?.name}).`);
   }
 
   // Extract the deployed contract artifacts.
@@ -69,6 +71,7 @@ export const getContractInstance = async (
   }
 
   return {
+    chain,
     publicClient,
     walletClient,
     contract,

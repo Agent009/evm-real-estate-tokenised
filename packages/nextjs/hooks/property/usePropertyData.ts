@@ -27,7 +27,7 @@ export const usePropertyReadData = (address: Address): HookFunc => {
           return await contract.read.MINTER_ROLE();
         case "hasRole":
           if (!args || args.length < 2) {
-            notification.error(`usePropertyData -> read (${method}) -> Please provide role and account addresses.`);
+            notification.error(`usePropertyData -> read (${method}) -> Please provide the role and account address.`);
             return null;
           }
 
