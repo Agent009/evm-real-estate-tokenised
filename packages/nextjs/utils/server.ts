@@ -47,7 +47,7 @@ export const getContractInstance = async (
   const { publicClient, walletClient } = await bootstrap(msgPrefix, chain, deployerAccount_);
   // Get the deployed contract data.
   // @ts-expect-error ignore
-  const contractData = deployedContracts[String(chain_.id)]?.[contractName];
+  const contractData = deployedContracts[String(chain.id)]?.[contractName];
 
   if (!contractData) {
     throw Error(`${contractName} contract not deployed on the specified chain (${chain?.name}).`);

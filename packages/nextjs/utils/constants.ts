@@ -41,6 +41,14 @@ export const constants = Object.freeze({
       base: cwaServerUrl + (cwaServerUrl?.charAt(cwaServerUrl?.length - 1) !== "/" ? "/" : "") + "api/",
       addProperty: "add-property",
       addUser: "add-property/user",
+      propertyToken: {
+        mint: "property-token/mint",
+        burn: "property-token/burn",
+        transfer: "property-token/transfer",
+        setApprovalForAll: "property-token/set-approval-for-all",
+        approve: "property-token/approve",
+        safeTransferFrom: "property-token/safe-transfer-from",
+      },
     },
   },
   // Smart contracts

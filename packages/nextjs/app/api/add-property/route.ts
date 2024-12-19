@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { checkAddress, checkParameters, gasPrices } from "~~/utils";
 import { getContractInstance } from "~~/utils/server";
 
-export type RequestPayload = {
+type RequestPayload = {
   chainId: number;
   propertyAddress: string;
   propertyAmount: string;
@@ -56,7 +56,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Get contract details for AddProperty
+    // Get contract instance
     const { contract: addPropertyContract, publicClient } = await getContractInstance(
       MSG_PREFIX + "-> AddProperty",
       "AddProperty",
