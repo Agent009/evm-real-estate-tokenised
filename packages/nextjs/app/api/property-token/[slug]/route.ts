@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { GetContractReturnType, PublicClient } from "viem";
 import { checkAddress, checkNumber, checkParameters, gasPrices } from "~~/utils";
-import {deployerAccount, getContractInstance} from "~~/utils/server";
+import { deployerAccount, getContractInstance } from "~~/utils/server";
 
 const GLOBAL_MSG_PREFIX = `api -> POST property-token`;
 
@@ -31,7 +32,7 @@ type MintRequestPayload = {
   mintAmount: number;
 };
 /**
- * Mint tokens
+ * Mint tokens. Requires MINTER_ROLE.
  * @param req
  */
 const mint = async (req: Request) => {
@@ -65,7 +66,7 @@ const mint = async (req: Request) => {
 
     // ===STEP=== Check minter role
     const minterRole = await contract.read.MINTER_ROLE();
-    const isMinter = await contract.read.hasRole([minterRole, deployerAccount]);
+    const isMinter = await contract.read.hasRole([minterRole, deployerAccount.address]);
 
     if (!isMinter) {
       return NextResponse.json({ error: "The caller does not have mint privileges." }, { status: 403 });
@@ -96,6 +97,10 @@ type BurnRequestPayload = {
   burnAmount: number;
 };
 
+/**
+ * Burn tokens. Currently only works for own tokens
+ * @param req
+ */
 const burn = async (req: Request) => {
   const MSG_PREFIX = `${GLOBAL_MSG_PREFIX} -> burn`;
   try {
@@ -120,9 +125,23 @@ const burn = async (req: Request) => {
       MSG_PREFIX + "-> PropertyToken",
       "PropertyToken",
       chainId,
+      deployerAccount,
     );
+    const targetIsCaller = deployerAccount.address.toLowerCase() === userAddress.toLowerCase();
 
-    const burnTx = await contract.write.burnFrom([userAddress, burnAmount]);
+    // If the target is not the caller, then we need to grant approval for burn to prevent ERC20InsufficientAllowance
+    if (!targetIsCaller) {
+      // This doesn't work because the approval needs to be granted from the "user", but the contract call below is
+      // coming from the "deployer".
+      const { approveReceipt } = await performApproveTx(publicClient, contract, deployerAccount.address, burnAmount);
+      console.log(`${MSG_PREFIX} -> approveTx`, approveReceipt.transactionHash);
+    }
+
+    const burnTx = targetIsCaller
+      ? await contract.write.burn([burnAmount]) // burning own tokens
+      : // This doesn't work currently, as we can't burn someone else's token without approval from that user first, and
+        // we aren't able to get the approval currently.
+        await contract.write.burnFrom([userAddress, burnAmount]); // burning someone else's tokens
     const burnReceipt = await publicClient.waitForTransactionReceipt({ hash: burnTx });
     gasPrices(burnReceipt, MSG_PREFIX);
     console.log(`${MSG_PREFIX} -> burnTx`, burnReceipt.transactionHash);
@@ -142,26 +161,24 @@ const burn = async (req: Request) => {
 
 type TransferRequestPayload = {
   chainId: number;
-  fromAddress: string;
   toAddress: string;
   amount: number;
 };
 
+/**
+ * Transfer tokens to another address.
+ * @param req
+ */
 const transfer = async (req: Request) => {
   const MSG_PREFIX = `${GLOBAL_MSG_PREFIX} -> transfer`;
   try {
     const body = (await req.json()) as TransferRequestPayload;
-    const { chainId, fromAddress, toAddress, amount } = body;
+    const { chainId, toAddress, amount } = body;
     const amountStr = String(amount);
-    console.log(MSG_PREFIX, "-> chain", chainId, "fromAddress", fromAddress, "toAddress", toAddress, "amount", amount);
+    console.log(MSG_PREFIX, "-> chain", chainId, "toAddress", toAddress, "amount", amount);
 
     try {
-      checkParameters(
-        [fromAddress, toAddress, amountStr],
-        3,
-        "You must provide the from address, to address, and the amount.",
-      );
-      checkAddress("from", fromAddress);
+      checkParameters([toAddress, amountStr], 2, "You must provide the from address, to address, and the amount.");
       checkAddress("to", toAddress);
       checkNumber("amount", amountStr);
     } catch (error) {
@@ -185,7 +202,7 @@ const transfer = async (req: Request) => {
 
     return NextResponse.json(
       {
-        message: `Transferred ${amount} tokens from ${fromAddress} to ${toAddress}.`,
+        message: `Transferred ${amount} tokens from ${deployerAccount.address} to ${toAddress}.`,
         data: { tx: transferReceipt.transactionHash },
       },
       { status: 200 },
@@ -266,6 +283,21 @@ const transfer = async (req: Request) => {
 //   }
 // };
 
+const performApproveTx = async (
+  publicClient: PublicClient,
+  contract: GetContractReturnType,
+  spenderAddress: string,
+  amount: number,
+) => {
+  // @ts-expect-error ignore
+  const approveTx = await contract.write.approve([spenderAddress, amount]);
+  const approveReceipt = await publicClient.waitForTransactionReceipt({ hash: approveTx });
+  return {
+    approveTx,
+    approveReceipt,
+  };
+};
+
 type ApproveRequestPayload = {
   chainId: number;
   ownerAddress: string;
@@ -314,8 +346,7 @@ const approve = async (req: Request) => {
       chainId,
     );
 
-    const approveTx = await contract.write.approve([spenderAddress, amount]);
-    const approveReceipt = await publicClient.waitForTransactionReceipt({ hash: approveTx });
+    const { approveReceipt } = await performApproveTx(publicClient, contract, spenderAddress, amount);
     gasPrices(approveReceipt, MSG_PREFIX);
     console.log(`${MSG_PREFIX} -> approveTx`, approveReceipt.transactionHash);
 
